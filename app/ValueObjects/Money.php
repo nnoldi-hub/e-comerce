@@ -74,8 +74,7 @@ final readonly class Money
     }
 
     /**
-     * Calculează un procent exprimat în puncte de bază (1900 = 19%),
-     * cu rotunjire half-up la unitatea minoră.
+     * Procent exprimat în puncte de bază (1900 = 19%), rotunjit half-up.
      */
     public function percentage(int $basisPoints): self
     {
@@ -87,6 +86,27 @@ final readonly class Money
         $result = intdiv($product, 10000);
 
         if (($product % 10000) >= 5000) {
+            $result++;
+        }
+
+        return new self($result, $this->currency);
+    }
+
+    /**
+     * Partea de taxă conținută într-o sumă care include deja taxa:
+     * suma * rata / (10000 + rata), rotunjită half-up.
+     */
+    public function extractTax(int $rateBps): self
+    {
+        if ($rateBps < 0) {
+            throw new InvalidArgumentException('Cota nu poate fi negativă.');
+        }
+
+        $numerator = $this->amount * $rateBps;
+        $denominator = 10000 + $rateBps;
+        $result = intdiv($numerator, $denominator);
+
+        if (($numerator % $denominator) * 2 >= $denominator) {
             $result++;
         }
 

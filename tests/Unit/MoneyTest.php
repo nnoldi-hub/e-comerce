@@ -26,6 +26,16 @@ it('rotunjește procentul half-up', function (int $amount, int $bps, int $expect
     'zero' => [0, 1900, 0],
 ]);
 
+it('extrage taxa dintr-o sumă cu taxă inclusă', function (int $gross, int $bps, int $expected) {
+    expect(Money::from($gross)->extractTax($bps)->amount())->toBe($expected);
+})->with([
+    '21% din 12100 (exact)' => [12100, 2100, 2100],
+    '19% din 10000 (1596,64)' => [10000, 1900, 1597],
+    'cotă zero' => [10000, 0, 0],
+    'sumă zero' => [0, 2100, 0],
+    '21% din 21780 (exact)' => [21780, 2100, 3780],
+]);
+
 it('refuză sume negative', function () {
     expect(fn () => Money::from(-1))->toThrow(InvalidArgumentException::class);
 });
@@ -34,9 +44,10 @@ it('refuză scăderi care ar da rezultat negativ', function () {
     expect(fn () => Money::from(100)->subtract(Money::from(101)))->toThrow(InvalidArgumentException::class);
 });
 
-it('refuză multiplicator și puncte de bază negative', function () {
+it('refuză multiplicator, puncte de bază și cotă negative', function () {
     expect(fn () => Money::from(100)->multiply(-1))->toThrow(InvalidArgumentException::class);
     expect(fn () => Money::from(100)->percentage(-1))->toThrow(InvalidArgumentException::class);
+    expect(fn () => Money::from(100)->extractTax(-1))->toThrow(InvalidArgumentException::class);
 });
 
 it('refuză monede cu lungime diferită de 3', function () {
