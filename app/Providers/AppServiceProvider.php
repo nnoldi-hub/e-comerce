@@ -2,6 +2,13 @@
 
 namespace App\Providers;
 
+use App\Models\Brand;
+use App\Models\Cart;
+use App\Models\Category;
+use App\Models\Order;
+use App\Models\Product;
+use App\Models\ProductVariant;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
@@ -9,27 +16,24 @@ use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         //
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
         Model::shouldBeStrict(! app()->isProduction());
         Model::preventLazyLoading(! app()->isProduction());
 
         Relation::enforceMorphMap([
-            'user' => 'App\\Models\\User',
-            'product' => 'App\\Models\\Product',
-            'category' => 'App\\Models\\Category',
-            'brand' => 'App\\Models\\Brand',
+            'user' => User::class,
+            'product' => Product::class,
+            'product_variant' => ProductVariant::class,
+            'category' => Category::class,
+            'brand' => Brand::class,
+            'cart' => Cart::class,
+            'order' => Order::class,
         ]);
 
         Gate::before(function ($user, $ability) {

@@ -9,10 +9,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('product_attribute_values', function (Blueprint $table) {
+            $table->id();
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
             $table->foreignId('product_variant_id')->nullable()->constrained()->cascadeOnDelete();
             $table->foreignId('attribute_value_id')->constrained()->cascadeOnDelete();
-            $table->primary(['product_id', 'attribute_value_id', 'product_variant_id'], 'pav_primary');
+
+            $table->unique(
+                ['product_id', 'attribute_value_id', 'product_variant_id'],
+                'pav_product_value_variant_unique'
+            );
         });
     }
 
