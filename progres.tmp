@@ -1,0 +1,12 @@
+﻿# Progres E-commerce Laravel
+
+Proiect: E-commerce pe Laravel 13
+Creat: 2026-10-27
+
+## Status
+- [x] Etapa 1: ArhitecturÄƒ, ERD È™i configurare iniÈ›ialÄƒ (completÄƒ)
+- [x] Etapa 2: Autentificare, roluri È™i securitate (ACL) (completÄƒ)
+- [x] Etapa 3: Catalogul de produse (management complex) (completÄƒ)
+- [/] Etapa 4: CoÈ™ul de cumpÄƒrÄƒturi È™i motorul de checkout
+- [/] Etapa 5: Gestiunea comenzilor È™i integrarea plÄƒÈ›ilor
+- [/] Etapa 6: Panoul de administrare profesional

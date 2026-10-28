@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -26,7 +27,15 @@ class AppServiceProvider extends ServiceProvider
 
         Relation::enforceMorphMap([
             'user' => 'App\\Models\\User',
-            // se vor adăuga pe măsură ce sunt create modelele
+            'product' => 'App\\Models\\Product',
+            'category' => 'App\\Models\\Category',
+            'brand' => 'App\\Models\\Brand',
         ]);
+
+        Gate::before(function ($user, $ability) {
+            if ($user->hasRole('Super Admin')) {
+                return true;
+            }
+        });
     }
 }
