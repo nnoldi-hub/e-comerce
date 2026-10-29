@@ -7,6 +7,7 @@ use App\Domain\Checkout\Actions\ReleaseExpiredReservations;
 use App\Enums\OrderStatus;
 use App\Models\CouponUsage;
 use App\Models\Order;
+use App\Models\OrderStatusHistory;
 use App\Models\StockReservation;
 use Tests\Feature\Pricing\PricingTestCase;
 
@@ -33,7 +34,7 @@ class ReleaseExpiredReservationsTest extends PricingTestCase
         $this->assertSame(2, $variant->fresh()->stock_reserved);
         $this->assertSame(1, CouponUsage::query()->count());
 
-        $this->travel(31)->minutes();
+        $this->travel(46)->minutes();
 
         $this->assertSame(1, $this->release());
 
@@ -42,6 +43,9 @@ class ReleaseExpiredReservationsTest extends PricingTestCase
         $this->assertNotNull(StockReservation::query()->firstOrFail()->released_at);
         $this->assertSame(OrderStatus::CANCELLED, $order->fresh()->status);
         $this->assertSame(0, CouponUsage::query()->count());
+
+        $history = OrderStatusHistory::query()->where('order_id', $order->id)->latest('id')->firstOrFail();
+        $this->assertSame(OrderStatus::CANCELLED, $history->to_status);
     }
 
     public function test_reservations_that_have_not_expired_are_left_alone(): void
@@ -56,12 +60,24 @@ class ReleaseExpiredReservationsTest extends PricingTestCase
         $this->assertSame(OrderStatus::AWAITING_PAYMENT, $order->fresh()->status);
     }
 
+    public function test_a_card_reservation_outlives_the_stripe_session(): void
+    {
+        $variant = $this->makeVariant(10000, stock: 5);
+        $order = $this->placeOrder($this->makeCart([[$variant, 2]]));
+
+        // Sesiunea Stripe expiră la 31 de minute; rezervarea ține 45.
+        $this->travel(32)->minutes();
+
+        $this->assertSame(0, $this->release());
+        $this->assertSame(OrderStatus::AWAITING_PAYMENT, $order->fresh()->status);
+    }
+
     public function test_releasing_twice_does_not_release_stock_twice(): void
     {
         $variant = $this->makeVariant(10000, stock: 5);
         $this->placeOrder($this->makeCart([[$variant, 2]]));
 
-        $this->travel(31)->minutes();
+        $this->travel(46)->minutes();
 
         $this->assertSame(1, $this->release());
         $this->assertSame(0, $this->release());
@@ -73,7 +89,7 @@ class ReleaseExpiredReservationsTest extends PricingTestCase
         $variant = $this->makeVariant(10000, stock: 5);
         $this->placeOrder($this->makeCart([[$variant, 1]]), ['paymentMethod' => 'cod']);
 
-        $this->travel(31)->minutes();
+        $this->travel(46)->minutes();
 
         $this->assertSame(0, $this->release());
         $this->assertSame(1, $variant->fresh()->stock_reserved);
@@ -85,7 +101,7 @@ class ReleaseExpiredReservationsTest extends PricingTestCase
         $order = $this->placeOrder($this->makeCart([[$variant, 2]]));
         $order->update(['status' => OrderStatus::PAID]);
 
-        $this->travel(31)->minutes();
+        $this->travel(46)->minutes();
 
         $this->assertSame(0, $this->release());
         $this->assertSame(2, $variant->fresh()->stock_reserved);

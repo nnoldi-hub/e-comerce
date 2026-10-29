@@ -3,17 +3,21 @@
 namespace Tests\Feature\Payments;
 
 use App\Domain\Checkout\Actions\PlaceOrderAction;
+use App\Domain\Checkout\Actions\ReleaseExpiredReservations;
+use App\Domain\Payments\Events\UnexpectedPaymentReceived;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
-use App\Enums\StockMovementType;
 use App\Models\InventoryMovement;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\ProductVariant;
 use App\Models\StockReservation;
 use App\Models\WebhookEvent;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Testing\TestResponse;
 use Tests\Feature\Pricing\PricingTestCase;
 
 class PaymentFlowTest extends PricingTestCase
@@ -39,16 +43,21 @@ class PaymentFlowTest extends PricingTestCase
         );
     }
 
-    /**
-     * @return array{0: Order, 1: ProductVariant, 2: Payment}
-     */
-    private function placeStripeOrder(): array
+    private function useStripe(): void
     {
         config([
             'shop.payments.methods.card' => 'stripe',
             'shop.payments.gateways.stripe.secret' => 'sk_test_123',
             'shop.payments.gateways.stripe.webhook_secret' => self::WEBHOOK_SECRET,
         ]);
+    }
+
+    /**
+     * @return array{0: Order, 1: ProductVariant, 2: Payment}
+     */
+    private function placeStripeOrder(): array
+    {
+        $this->useStripe();
 
         Http::fake([
             'api.stripe.com/*' => Http::response([
@@ -84,6 +93,7 @@ class PaymentFlowTest extends PricingTestCase
         string $reference = 'cs_test_123',
         string $eventId = 'evt_test_1',
         string $type = 'checkout.session.completed',
+        string $paymentStatus = 'paid',
     ): string {
         return (string) json_encode([
             'id' => $eventId,
@@ -93,10 +103,23 @@ class PaymentFlowTest extends PricingTestCase
                     'id' => $reference,
                     'amount_total' => $amount,
                     'currency' => 'ron',
-                    'payment_status' => 'paid',
+                    'payment_status' => $paymentStatus,
                 ],
             ],
         ]);
+    }
+
+    private function postWebhook(string $payload, ?string $secret = null): TestResponse
+    {
+        return $this->call(
+            'POST',
+            '/webhooks/payments/stripe',
+            [],
+            [],
+            [],
+            $this->stripeHeaders($payload, $secret ?? self::WEBHOOK_SECRET),
+            $payload,
+        );
     }
 
     public function test_placing_an_order_creates_a_pending_payment_for_the_selected_gateway(): void
@@ -134,14 +157,42 @@ class PaymentFlowTest extends PricingTestCase
         $this->assertSame(OrderStatus::AWAITING_PAYMENT, $order->status);
     }
 
-    public function test_a_valid_webhook_confirms_payment_and_converts_reservations_to_sales(): void
+    public function test_the_stripe_session_request_expires_and_carries_an_idempotency_key(): void
+    {
+        [$order] = $this->placeStripeOrder();
+
+        Http::assertSent(function (Request $request) use ($order) {
+            $expiresAt = (int) ($request['expires_at'] ?? 0);
+
+            return $request->url() === 'https://api.stripe.com/v1/checkout/sessions'
+                && $request->hasHeader('Idempotency-Key')
+                && str_starts_with($request->header('Idempotency-Key')[0], 'ecom-'.$order->number.'-')
+                && abs($expiresAt - (time() + 31 * 60)) <= 30;
+        });
+    }
+
+    public function test_a_rejected_stripe_request_marks_the_payment_failed_without_breaking_the_order(): void
+    {
+        $this->useStripe();
+
+        Http::fake([
+            'api.stripe.com/*' => Http::response(['error' => ['message' => 'Invalid API Key']], 401),
+        ]);
+
+        $order = $this->placeOrder('card');
+
+        $payment = Payment::query()->firstOrFail();
+
+        $this->assertSame(PaymentStatus::FAILED, $payment->status);
+        $this->assertStringContainsString('Invalid API Key', (string) ($payment->payload['error'] ?? ''));
+        $this->assertSame(OrderStatus::AWAITING_PAYMENT, $order->fresh()->status);
+    }
+
+    public function test_a_valid_webhook_confirms_payment_and_keeps_the_stock_reserved(): void
     {
         [$order, $variant, $payment] = $this->placeStripeOrder();
 
-        $payload = $this->stripeEvent();
-
-        $this->call('POST', '/webhooks/payments/stripe', [], [], [], $this->stripeHeaders($payload), $payload)
-            ->assertOk();
+        $this->postWebhook($this->stripeEvent())->assertOk();
 
         $this->assertSame(PaymentStatus::PAID, $payment->fresh()->status);
         $this->assertNotNull($payment->fresh()->paid_at);
@@ -150,44 +201,36 @@ class PaymentFlowTest extends PricingTestCase
         $this->assertSame(OrderStatus::PAID, $order->status);
         $this->assertSame(PaymentStatus::PAID, $order->payment_status);
 
-        $this->assertSame(8, $variant->fresh()->stock_on_hand);
-        $this->assertSame(0, $variant->fresh()->stock_reserved);
-        $this->assertNotNull(StockReservation::query()->firstOrFail()->released_at);
-
-        $movement = InventoryMovement::query()->firstOrFail();
-        $this->assertSame(StockMovementType::SALE, $movement->type);
-        $this->assertSame(-2, $movement->quantity);
-        $this->assertSame(8, $movement->balance_after);
-        $this->assertSame('order', $movement->reference_type);
-        $this->assertSame($order->id, (int) $movement->reference_id);
+        // Stocul fizic scade la expediere, nu la plată.
+        $this->assertSame(10, $variant->fresh()->stock_on_hand);
+        $this->assertSame(2, $variant->fresh()->stock_reserved);
+        $this->assertNull(StockReservation::query()->firstOrFail()->released_at);
+        $this->assertSame(0, InventoryMovement::query()->count());
 
         $this->assertNotNull(WebhookEvent::query()->firstOrFail()->processed_at);
     }
 
     public function test_the_same_webhook_is_processed_only_once(): void
     {
-        [, $variant] = $this->placeStripeOrder();
+        [$order, $variant] = $this->placeStripeOrder();
 
         $payload = $this->stripeEvent();
 
-        $this->call('POST', '/webhooks/payments/stripe', [], [], [], $this->stripeHeaders($payload), $payload)
-            ->assertOk();
-        $this->call('POST', '/webhooks/payments/stripe', [], [], [], $this->stripeHeaders($payload), $payload)
-            ->assertOk();
+        $this->postWebhook($payload)->assertOk();
+        $this->postWebhook($payload)->assertOk();
 
-        $this->assertSame(8, $variant->fresh()->stock_on_hand);
-        $this->assertSame(1, InventoryMovement::query()->count());
+        $this->assertSame(10, $variant->fresh()->stock_on_hand);
+        $this->assertSame(2, $variant->fresh()->stock_reserved);
         $this->assertSame(1, WebhookEvent::query()->count());
+        // Istoric: comanda plasată + plata confirmată, o singură dată.
+        $this->assertSame(2, $order->statusHistories()->count());
     }
 
     public function test_an_invalid_signature_is_rejected_and_nothing_changes(): void
     {
         [$order, $variant] = $this->placeStripeOrder();
 
-        $payload = $this->stripeEvent();
-
-        $this->call('POST', '/webhooks/payments/stripe', [], [], [], $this->stripeHeaders($payload, 'alt-secret'), $payload)
-            ->assertForbidden();
+        $this->postWebhook($this->stripeEvent(), 'alt-secret')->assertForbidden();
 
         $this->assertSame(OrderStatus::AWAITING_PAYMENT, $order->fresh()->status);
         $this->assertSame(2, $variant->fresh()->stock_reserved);
@@ -198,10 +241,7 @@ class PaymentFlowTest extends PricingTestCase
     {
         [$order, $variant] = $this->placeStripeOrder();
 
-        $payload = $this->stripeEvent(amount: 100);
-
-        $this->call('POST', '/webhooks/payments/stripe', [], [], [], $this->stripeHeaders($payload), $payload)
-            ->assertStatus(422);
+        $this->postWebhook($this->stripeEvent(amount: 100))->assertStatus(422);
 
         $this->assertSame(OrderStatus::AWAITING_PAYMENT, $order->fresh()->status);
         $this->assertSame(2, $variant->fresh()->stock_reserved);
@@ -214,5 +254,129 @@ class PaymentFlowTest extends PricingTestCase
 
         $this->call('POST', '/webhooks/payments/necunoscut', [], [], [], $this->stripeHeaders($payload), $payload)
             ->assertNotFound();
+    }
+
+    public function test_an_unpaid_completed_session_stays_pending_until_the_async_payment_succeeds(): void
+    {
+        [$order, , $payment] = $this->placeStripeOrder();
+
+        $this->postWebhook($this->stripeEvent(paymentStatus: 'unpaid'))->assertOk();
+
+        $this->assertSame(PaymentStatus::PENDING, $payment->fresh()->status);
+        $this->assertSame(OrderStatus::AWAITING_PAYMENT, $order->fresh()->status);
+        $this->assertSame(PaymentStatus::PENDING, $order->fresh()->payment_status);
+
+        $this->postWebhook($this->stripeEvent(
+            eventId: 'evt_test_2',
+            type: 'checkout.session.async_payment_succeeded',
+        ))->assertOk();
+
+        $this->assertSame(PaymentStatus::PAID, $payment->fresh()->status);
+        $this->assertSame(OrderStatus::PAID, $order->fresh()->status);
+    }
+
+    public function test_a_failed_async_payment_marks_the_payment_failed_and_keeps_the_reservation(): void
+    {
+        [$order, $variant, $payment] = $this->placeStripeOrder();
+
+        $this->postWebhook($this->stripeEvent(type: 'checkout.session.async_payment_failed'))->assertOk();
+
+        $this->assertSame(PaymentStatus::FAILED, $payment->fresh()->status);
+        $this->assertSame(OrderStatus::AWAITING_PAYMENT, $order->fresh()->status);
+        $this->assertSame(2, $variant->fresh()->stock_reserved);
+    }
+
+    public function test_an_expired_session_marks_the_payment_failed(): void
+    {
+        [, , $payment] = $this->placeStripeOrder();
+
+        $this->postWebhook($this->stripeEvent(type: 'checkout.session.expired'))->assertOk();
+
+        $this->assertSame(PaymentStatus::FAILED, $payment->fresh()->status);
+    }
+
+    public function test_a_late_failure_does_not_overwrite_a_paid_payment(): void
+    {
+        [$order, , $payment] = $this->placeStripeOrder();
+
+        $this->postWebhook($this->stripeEvent())->assertOk();
+        $this->postWebhook($this->stripeEvent(eventId: 'evt_test_2', type: 'checkout.session.expired'))->assertOk();
+
+        $this->assertSame(PaymentStatus::PAID, $payment->fresh()->status);
+        $this->assertSame(OrderStatus::PAID, $order->fresh()->status);
+    }
+
+    public function test_a_normal_payment_does_not_raise_the_unexpected_payment_event(): void
+    {
+        $this->placeStripeOrder();
+
+        Event::fake([UnexpectedPaymentReceived::class]);
+
+        $this->postWebhook($this->stripeEvent())->assertOk();
+
+        Event::assertNotDispatched(UnexpectedPaymentReceived::class);
+    }
+
+    public function test_a_payment_received_after_the_order_was_cancelled_is_recorded_without_reviving_the_order(): void
+    {
+        [$order, $variant, $payment] = $this->placeStripeOrder();
+
+        $this->travel(46)->minutes();
+        $this->assertSame(1, $this->app->make(ReleaseExpiredReservations::class)->execute());
+        $this->assertSame(OrderStatus::CANCELLED, $order->fresh()->status);
+
+        Event::fake([UnexpectedPaymentReceived::class]);
+
+        $this->postWebhook($this->stripeEvent())->assertOk();
+
+        // Banii sunt înregistrați...
+        $this->assertSame(PaymentStatus::PAID, $payment->fresh()->status);
+        $this->assertNotNull($payment->fresh()->paid_at);
+        $this->assertSame('order_closed', $payment->fresh()->payload['unexpected_reason']);
+
+        // ...dar comanda și stocul rămân neatinse.
+        $this->assertSame(OrderStatus::CANCELLED, $order->fresh()->status);
+        $this->assertSame(PaymentStatus::PENDING, $order->fresh()->payment_status);
+        $this->assertSame(10, $variant->fresh()->stock_on_hand);
+        $this->assertSame(0, $variant->fresh()->stock_reserved);
+        $this->assertSame(0, InventoryMovement::query()->count());
+
+        Event::assertDispatched(
+            UnexpectedPaymentReceived::class,
+            fn (UnexpectedPaymentReceived $event) => $event->reason === 'order_closed' && $event->payment->is($payment),
+        );
+    }
+
+    public function test_a_second_payment_on_an_already_paid_order_is_flagged(): void
+    {
+        [$order, $variant] = $this->placeStripeOrder();
+
+        $this->postWebhook($this->stripeEvent())->assertOk();
+
+        $second = Payment::create([
+            'order_id' => $order->id,
+            'provider' => 'stripe',
+            'provider_reference' => 'cs_test_456',
+            'method' => 'card',
+            'amount' => $order->grand_total,
+            'currency' => $order->currency,
+            'status' => PaymentStatus::PENDING,
+        ]);
+
+        Event::fake([UnexpectedPaymentReceived::class]);
+
+        $this->postWebhook($this->stripeEvent(reference: 'cs_test_456', eventId: 'evt_test_2'))->assertOk();
+
+        $this->assertSame(PaymentStatus::PAID, $second->fresh()->status);
+        $this->assertSame('already_paid', $second->fresh()->payload['unexpected_reason']);
+        $this->assertSame(OrderStatus::PAID, $order->fresh()->status);
+        $this->assertSame(PaymentStatus::PAID, $order->fresh()->payment_status);
+        $this->assertSame(10, $variant->fresh()->stock_on_hand);
+        $this->assertSame(2, $variant->fresh()->stock_reserved);
+
+        Event::assertDispatched(
+            UnexpectedPaymentReceived::class,
+            fn (UnexpectedPaymentReceived $event) => $event->reason === 'already_paid' && $event->payment->is($second),
+        );
     }
 }
