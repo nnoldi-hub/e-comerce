@@ -6,6 +6,7 @@ use App\Domain\Orders\Events\OrderStatusChanged;
 use App\Enums\OrderStatus;
 use App\Listeners\Concerns\DeliversMail;
 use App\Mail\OrderStatusChangedMail;
+use App\Models\Shipment;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\Mail;
@@ -41,11 +42,22 @@ class SendOrderStatusNotification implements ShouldQueue
     }
 
     /**
-     * Evită punerea pe coadă a unui job care nu va trimite nimic.
+     * Evită punerea pe coadă a unui job care nu va trimite nimic. Pentru
+     * `shipped` cu expediere înregistrată, emailul cu AWB îl trimite
+     * SendShipmentNotification (altfel clientul ar primi două emailuri).
      */
     public function shouldQueue(OrderStatusChanged $event): bool
     {
-        return in_array($event->to, self::NOTIFIABLE, true);
+        if (! in_array($event->to, self::NOTIFIABLE, true)) {
+            return false;
+        }
+
+        if ($event->to === OrderStatus::SHIPPED
+            && Shipment::query()->where('order_id', $event->order->id)->exists()) {
+            return false;
+        }
+
+        return true;
     }
 
     public function handle(OrderStatusChanged $event): void
