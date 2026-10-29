@@ -37,12 +37,6 @@ parameters:
 			path: app/Domain/Cart/Services/CartService.php
 
 		-
-			message: '#^Cannot call method isFuture\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Domain/Checkout/Actions/ReleaseExpiredReservations.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$is_active\.$#'
 			identifier: property.notFound
 			count: 1

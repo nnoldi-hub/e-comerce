@@ -4,15 +4,17 @@ namespace App\Domain\Checkout\Actions;
 
 use App\Domain\Orders\Actions\TransitionOrderStatusAction;
 use App\Enums\OrderStatus;
-use App\Models\CouponUsage;
 use App\Models\Order;
-use App\Models\ProductVariant;
 use App\Models\StockReservation;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Eliberează rezervările expirate ale comenzilor încă neplătite și le anulează.
- * Comenzile plătite sau avansate nu se ating. Operațiunea este idempotentă.
+ * Anulează comenzile neplătite ale căror rezervări au expirat. Anularea trece
+ * prin TransitionOrderStatusAction, deci eliberează stocul, șterge utilizarea
+ * cuponului și intră în istoric (un singur loc pentru eliberare). Comenzile
+ * plătite sau avansate nu se ating. Operațiunea este idempotentă.
+ *
+ * Rezervările apar doar la plasarea comenzii, deci toate au order_id.
  */
 class ReleaseExpiredReservations
 {
@@ -20,68 +22,53 @@ class ReleaseExpiredReservations
 
     public function __construct(private readonly TransitionOrderStatusAction $transitions) {}
 
+    /** @return int numărul de comenzi anulate */
     public function execute(int $limit = 200): int
     {
-        $ids = StockReservation::query()
+        $orderIds = StockReservation::query()
             ->expired()
-            ->orderBy('id')
+            ->whereNotNull('order_id')
+            ->distinct()
+            ->orderBy('order_id')
             ->limit($limit)
-            ->pluck('id');
+            ->pluck('order_id');
 
-        $released = 0;
+        $cancelled = 0;
 
-        foreach ($ids as $id) {
-            if (DB::transaction(fn () => $this->release((int) $id))) {
-                $released++;
+        foreach ($orderIds as $orderId) {
+            if (DB::transaction(fn () => $this->cancelIfExpired((int) $orderId))) {
+                $cancelled++;
             }
         }
 
-        return $released;
+        return $cancelled;
     }
 
-    private function release(int $id): bool
+    private function cancelIfExpired(int $orderId): bool
     {
-        $reservation = StockReservation::query()->lockForUpdate()->find($id);
+        // Ordinea blocărilor: comanda mai întâi (la fel ca în TransitionOrderStatusAction).
+        $order = Order::query()->lockForUpdate()->find($orderId);
 
-        if ($reservation === null || $reservation->released_at !== null) {
+        if ($order === null || ! in_array($order->status, self::UNPAID, true)) {
             return false;
         }
 
-        // Expirarea poate fi prelungită între timp (ex. plată inițiată).
-        if ($reservation->expires_at->isFuture()) {
+        // Reverificare după blocare: expirarea poate fi prelungită între timp.
+        $stillExpired = StockReservation::query()
+            ->where('order_id', $orderId)
+            ->expired()
+            ->exists();
+
+        if (! $stillExpired) {
             return false;
         }
 
-        $order = $reservation->order_id !== null
-            ? Order::query()->lockForUpdate()->find($reservation->order_id)
-            : null;
-
-        if ($order !== null && ! in_array($order->status, self::UNPAID, true)) {
-            return false;
-        }
-
-        $variant = ProductVariant::query()->lockForUpdate()->find($reservation->product_variant_id);
-
-        if ($variant !== null) {
-            $amount = min($reservation->quantity, max(0, $variant->stock_reserved));
-
-            if ($amount > 0) {
-                $variant->decrement('stock_reserved', $amount);
-            }
-        }
-
-        $reservation->update(['released_at' => now()]);
-
-        if ($order !== null) {
-            $this->transitions->execute(
-                $order,
-                OrderStatus::CANCELLED,
-                null,
-                'Rezervarea de stoc a expirat înainte de plată',
-            );
-
-            CouponUsage::query()->where('order_id', $order->id)->delete();
-        }
+        $this->transitions->execute(
+            $order,
+            OrderStatus::CANCELLED,
+            null,
+            'Rezervarea de stoc a expirat înainte de plată',
+        );
 
         return true;
     }

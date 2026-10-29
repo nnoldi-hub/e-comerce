@@ -9,9 +9,13 @@ return [
     /*
     | Cât timp rămâne rezervat stocul unei comenzi neplătite, în funcție de
     | metoda de plată. După expirare, rezervarea este eliberată automat.
+    |
+    | Pentru card, rezervarea (45 min) este mai lungă decât sesiunea Stripe
+    | Checkout (31 min, vezi StripeGateway): o plată nu poate sosi după ce
+    | comanda a fost anulată pentru expirare.
     */
     'reservation_minutes' => [
-        'card' => 30,
+        'card' => 45,
         'cod' => 1440,
     ],
 
