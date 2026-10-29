@@ -3,7 +3,9 @@
 namespace App\Domain\Payments\Events;
 
 use App\Models\Payment;
+use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Queue\SerializesModels;
 
 /**
  * Banii au fost încasați, dar comanda nu mai poate fi onorată. Plata este
@@ -12,10 +14,13 @@ use Illuminate\Foundation\Events\Dispatchable;
  *
  * Motive: order_closed (anulată sau rambursată), already_paid (comanda a fost
  * deja plătită printr-o altă plată), wrong_state.
+ *
+ * Se publică după commit, pentru că webhook-ul rulează într-o tranzacție.
  */
-class UnexpectedPaymentReceived
+class UnexpectedPaymentReceived implements ShouldDispatchAfterCommit
 {
     use Dispatchable;
+    use SerializesModels;
 
     public function __construct(
         public readonly Payment $payment,

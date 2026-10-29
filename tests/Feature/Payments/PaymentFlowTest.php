@@ -16,6 +16,7 @@ use App\Models\WebhookEvent;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Testing\TestResponse;
 use Tests\Feature\Pricing\PricingTestCase;
@@ -237,15 +238,84 @@ class PaymentFlowTest extends PricingTestCase
         $this->assertSame(0, InventoryMovement::query()->count());
     }
 
-    public function test_a_webhook_amount_mismatch_is_rejected(): void
+    public function test_a_webhook_amount_mismatch_is_rejected_permanently(): void
     {
         [$order, $variant] = $this->placeStripeOrder();
 
-        $this->postWebhook($this->stripeEvent(amount: 100))->assertStatus(422);
+        // 202: eroare permanentă, providerul nu mai are de ce să retrimită.
+        $this->postWebhook($this->stripeEvent(amount: 100))
+            ->assertStatus(202)
+            ->assertJson(['status' => 'rejected']);
 
         $this->assertSame(OrderStatus::AWAITING_PAYMENT, $order->fresh()->status);
         $this->assertSame(2, $variant->fresh()->stock_reserved);
-        $this->assertNull(WebhookEvent::query()->firstOrFail()->processed_at);
+
+        $event = WebhookEvent::query()->firstOrFail();
+        $this->assertNull($event->processed_at);
+        $this->assertSame('failed', $event->status);
+        $this->assertSame(1, $event->attempts);
+        $this->assertNotEmpty($event->error);
+    }
+
+    public function test_a_processed_webhook_is_logged_as_processed(): void
+    {
+        $this->placeStripeOrder();
+
+        $this->postWebhook($this->stripeEvent())->assertOk();
+
+        $event = WebhookEvent::query()->firstOrFail();
+        $this->assertSame('processed', $event->status);
+        $this->assertSame(1, $event->attempts);
+        $this->assertNull($event->error);
+    }
+
+    public function test_a_webhook_for_an_unknown_payment_is_retried_for_a_while_and_then_dropped(): void
+    {
+        $this->placeStripeOrder();
+
+        $payload = $this->stripeEvent(reference: 'cs_unknown');
+
+        // Primele minute: 409, providerul reîncearcă (poate referința nu e încă salvată).
+        $this->postWebhook($payload)->assertStatus(409)->assertJson(['status' => 'retry']);
+
+        $event = WebhookEvent::query()->firstOrFail();
+        $this->assertSame('pending', $event->status);
+        $this->assertSame(1, $event->attempts);
+        $this->assertNotEmpty($event->error);
+
+        // După termen: abandonat definitiv, cu 202.
+        $this->travel(11)->minutes();
+
+        $this->postWebhook($payload)->assertStatus(202)->assertJson(['status' => 'rejected']);
+
+        $event->refresh();
+        $this->assertSame('failed', $event->status);
+        $this->assertSame(2, $event->attempts);
+    }
+
+    public function test_an_invalid_signature_is_logged_and_returns_json(): void
+    {
+        $this->placeStripeOrder();
+
+        Log::spy();
+
+        $this->postWebhook($this->stripeEvent(), 'alt-secret')
+            ->assertForbidden()
+            ->assertJson(['status' => 'invalid_signature']);
+
+        Log::shouldHaveReceived('warning')->once();
+    }
+
+    public function test_the_webhook_route_has_no_session_or_cookies(): void
+    {
+        $this->placeStripeOrder();
+
+        $payload = $this->stripeEvent();
+
+        $response = $this->postWebhook($payload, 'alt-secret');
+
+        $response->assertForbidden();
+        $this->assertEmpty($response->headers->getCookies());
     }
 
     public function test_an_unknown_gateway_returns_404(): void
