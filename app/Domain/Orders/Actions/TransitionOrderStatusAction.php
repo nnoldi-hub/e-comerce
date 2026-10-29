@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\DB;
  *  - shipped: rezervarea devine scădere din stoc (ledger SALE);
  *  - cancelled / refunded: rezervările rămase se eliberează; cuponul redevine
  *    disponibil doar la anulare.
- * O comandă plătită nu se anulează; se rambursează.
+ * O comandă plătită (inclusiv parțial rambursată) nu se anulează; se rambursează.
  */
 class TransitionOrderStatusAction
 {
@@ -48,7 +48,8 @@ class TransitionOrderStatusAction
                 throw new InvalidOrderTransitionException($from, $to);
             }
 
-            if ($to === OrderStatus::CANCELLED && $locked->payment_status === PaymentStatus::PAID) {
+            if ($to === OrderStatus::CANCELLED
+                && in_array($locked->payment_status, [PaymentStatus::PAID, PaymentStatus::PARTIALLY_REFUNDED], true)) {
                 throw new InvalidOrderTransitionException($from, $to, 'paid_order');
             }
 

@@ -5,8 +5,10 @@ namespace App\Domain\Payments\Gateways;
 use App\Domain\Payments\Contracts\PaymentGateway;
 use App\Domain\Payments\DTOs\PaymentInitiation;
 use App\Domain\Payments\DTOs\PaymentNotification;
+use App\Domain\Payments\DTOs\RefundResult;
 use App\Domain\Payments\Exceptions\PaymentException;
 use App\Enums\PaymentStatus;
+use App\Enums\RefundStatus;
 use App\Models\Order;
 use App\Models\Payment;
 use Illuminate\Http\Client\ConnectionException;
@@ -93,6 +95,72 @@ class StripeGateway implements PaymentGateway
             redirectUrl: is_string($url) ? $url : null,
             payload: ['session' => $session],
         );
+    }
+
+    public function supportsRefunds(): bool
+    {
+        return true;
+    }
+
+    /**
+     * Rambursează prin PaymentIntent-ul sesiunii Checkout. Referința plății
+     * este id-ul sesiunii, deci PaymentIntent-ul se citește de la Stripe.
+     * Statusul `pending` (ex. metode asincrone) rămâne pending local.
+     */
+    public function refund(Payment $payment, int $amount, string $idempotencyKey, ?string $reason = null): RefundResult
+    {
+        if ($this->secret === '') {
+            throw new PaymentException('Cheia secretă Stripe nu este configurată.');
+        }
+
+        $reference = (string) $payment->provider_reference;
+
+        try {
+            $session = $this->decode(
+                Http::withToken($this->secret)
+                    ->timeout(15)
+                    ->connectTimeout(5)
+                    ->get(self::API_BASE.'/checkout/sessions/'.$reference)
+            );
+
+            $intent = $session['payment_intent'] ?? null;
+
+            if (! is_string($intent) || $intent === '') {
+                throw new PaymentException('Sesiunea Stripe nu are un PaymentIntent de rambursat.');
+            }
+
+            $data = $this->decode(
+                Http::withToken($this->secret)
+                    ->withHeaders(['Idempotency-Key' => $idempotencyKey])
+                    ->timeout(15)
+                    ->connectTimeout(5)
+                    ->asForm()
+                    ->post(self::API_BASE.'/refunds', array_filter([
+                        'payment_intent' => $intent,
+                        'amount' => $amount,
+                        'metadata' => array_filter([
+                            'order_id' => (string) $payment->order_id,
+                            'reason' => $reason,
+                        ]),
+                    ]))
+            );
+        } catch (ConnectionException $exception) {
+            throw new PaymentException('Stripe nu a răspuns la timp: '.$exception->getMessage(), 0, $exception);
+        }
+
+        $id = $data['id'] ?? null;
+
+        if (! is_string($id) || $id === '') {
+            throw new PaymentException('Răspuns invalid de la Stripe: lipsește id-ul rambursării.');
+        }
+
+        $status = match ($data['status'] ?? null) {
+            'succeeded' => RefundStatus::SUCCEEDED,
+            'failed', 'canceled' => RefundStatus::FAILED,
+            default => RefundStatus::PENDING,
+        };
+
+        return new RefundResult($id, $status, ['refund' => $data]);
     }
 
     public function verifyWebhook(Request $request): bool

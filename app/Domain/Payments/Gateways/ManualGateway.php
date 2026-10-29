@@ -5,7 +5,9 @@ namespace App\Domain\Payments\Gateways;
 use App\Domain\Payments\Contracts\PaymentGateway;
 use App\Domain\Payments\DTOs\PaymentInitiation;
 use App\Domain\Payments\DTOs\PaymentNotification;
+use App\Domain\Payments\DTOs\RefundResult;
 use App\Enums\PaymentStatus;
+use App\Enums\RefundStatus;
 use App\Models\Order;
 use App\Models\Payment;
 use Illuminate\Http\Request;
@@ -38,5 +40,19 @@ class ManualGateway implements PaymentGateway
     public function parseWebhook(Request $request): ?PaymentNotification
     {
         return null;
+    }
+
+    public function supportsRefunds(): bool
+    {
+        return true;
+    }
+
+    /**
+     * Rambursarea se face în afara sistemului (virament, numerar); aici doar
+     * se înregistrează, cu o referință derivată din cheia de idempotență.
+     */
+    public function refund(Payment $payment, int $amount, string $idempotencyKey, ?string $reason = null): RefundResult
+    {
+        return new RefundResult('MANREF-'.$idempotencyKey, RefundStatus::SUCCEEDED);
     }
 }

@@ -4,6 +4,7 @@ namespace App\Domain\Payments\Contracts;
 
 use App\Domain\Payments\DTOs\PaymentInitiation;
 use App\Domain\Payments\DTOs\PaymentNotification;
+use App\Domain\Payments\DTOs\RefundResult;
 use App\Models\Order;
 use App\Models\Payment;
 use Illuminate\Http\Request;
@@ -25,4 +26,13 @@ interface PaymentGateway
 
     /** Traduce webhook-ul în ceva ce înțelege domeniul; null = ignorat. */
     public function parseWebhook(Request $request): ?PaymentNotification;
+
+    /** Gateway-ul poate rambursa (total sau parțial) o plată încasată. */
+    public function supportsRefunds(): bool;
+
+    /**
+     * Rambursează $amount (unități minore) din plată. $idempotencyKey este stabilă
+     * pentru aceeași rambursare locală, deci o reîncercare nu dublează banii.
+     */
+    public function refund(Payment $payment, int $amount, string $idempotencyKey, ?string $reason = null): RefundResult;
 }
