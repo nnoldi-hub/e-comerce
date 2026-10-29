@@ -6,7 +6,7 @@ function cuiFails(string $value): bool
 {
     $failed = false;
 
-    (new ValidCui())->validate('cui', $value, function () use (&$failed) {
+    (new ValidCui)->validate('cui', $value, function () use (&$failed) {
         $failed = true;
     });
 

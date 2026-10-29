@@ -8,15 +8,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\Sluggable\HasSlug;
 use Spatie\Sluggable\SlugOptions;
-use Illuminate\Support\Str;
 
 class Product extends Model implements HasMedia
 {
-    use HasFactory, HasSlug, SoftDeletes, InteractsWithMedia;
+    use HasFactory, HasSlug, InteractsWithMedia, SoftDeletes;
 
     public function registerMediaCollections(): void
     {

@@ -1,5 +1,10 @@
 <?php
 
+use App\Domain\Checkout\Actions\PlaceOrderAction;
+use App\Domain\Checkout\DTOs\PlaceOrderData;
+use App\Models\Cart;
+use Illuminate\Contracts\Console\Kernel;
+
 /*
  * Proces separat folosit de OrderConcurrencyTest: plasează o comandă și
  * afișează rezultatul ca JSON. Pornește la momentul $startAt, ca procesele
@@ -11,7 +16,7 @@
 require __DIR__.'/../../vendor/autoload.php';
 
 $app = require __DIR__.'/../../bootstrap/app.php';
-$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$app->make(Kernel::class)->bootstrap();
 
 [, $cartId, $idempotencyKey, $shippingMethodId, $startAt] = $argv;
 
@@ -30,11 +35,11 @@ $address = [
 ];
 
 try {
-    $cart = App\Models\Cart::query()->findOrFail((int) $cartId);
+    $cart = Cart::query()->findOrFail((int) $cartId);
 
-    $order = $app->make(App\Domain\Checkout\Actions\PlaceOrderAction::class)->execute(
+    $order = $app->make(PlaceOrderAction::class)->execute(
         $cart,
-        new App\Domain\Checkout\DTOs\PlaceOrderData(
+        new PlaceOrderData(
             email: 'worker@example.com',
             billingAddress: $address,
             shippingAddress: $address,

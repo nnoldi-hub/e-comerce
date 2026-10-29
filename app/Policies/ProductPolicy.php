@@ -9,7 +9,7 @@ class ProductPolicy
 {
     use HandlesAuthorization;
 
-    public function before(User $user, string $ability): bool|null
+    public function before(User $user, string $ability): ?bool
     {
         if ($user->hasRole('Super Admin')) {
             return true;

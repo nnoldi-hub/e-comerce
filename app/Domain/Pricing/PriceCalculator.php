@@ -32,7 +32,7 @@ class PriceCalculator
 
     public function calculate(Cart $cart, ?PricingInput $input = null): CartTotals
     {
-        $context = new PricingContext($cart, $input ?? new PricingInput());
+        $context = new PricingContext($cart, $input ?? new PricingInput);
 
         return (new Pipeline($this->container))
             ->send($context)

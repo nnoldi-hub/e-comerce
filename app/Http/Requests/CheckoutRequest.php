@@ -45,7 +45,7 @@ class CheckoutRequest extends FormRequest
             'country' => ['required', 'string', 'size:2'],
             'is_company' => ['sometimes', 'boolean'],
             'company_name' => [Rule::requiredIf($isCompany), 'nullable', 'string', 'max:255'],
-            'cui' => [Rule::requiredIf($isCompany), 'nullable', new ValidCui()],
+            'cui' => [Rule::requiredIf($isCompany), 'nullable', new ValidCui],
             'reg_com' => ['nullable', 'string', 'max:50'],
             'shipping_method_id' => ['required', 'integer', 'exists:shipping_methods,id'],
             'payment_method' => ['required', Rule::in(['cod', 'card'])],

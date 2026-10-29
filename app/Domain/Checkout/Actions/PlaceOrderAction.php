@@ -91,7 +91,7 @@ class PlaceOrderAction
                 return [$existing, false];
             }
 
-            throw new EmptyCartException();
+            throw new EmptyCartException;
         }
 
         $variantIds = $items->pluck('product_variant_id')
@@ -261,7 +261,7 @@ class PlaceOrderAction
         }
 
         if ($order->email !== $data->email) {
-            throw new IdempotencyConflictException();
+            throw new IdempotencyConflictException;
         }
 
         return $order->load('items');
