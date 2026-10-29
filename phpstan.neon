@@ -1,0 +1,18 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - phpstan-baseline.neon
+
+parameters:
+    paths:
+        - app
+        - database
+        - routes
+
+    excludePaths:
+        - database/migrations
+
+    # Pornește de la 6 și crește treptat spre 8, regenerând baseline-ul:
+    #   php vendor/bin/phpstan analyse --generate-baseline
+    level: 6
+
+    treatPhpDocTypesAsCertain: false

@@ -17,11 +17,11 @@ Ultima actualizare: 2026-10-28
 
 ### Etapa 1: Arhitectură, ERD și configurare inițială
 - [x] Repository Git inițializat
-- [/] Mediu local reproductibil (Docker/Sail)
-- [/] ERD complet validat
+- [x] Mediu local reproductibil (Docker/Sail)
+- [x] ERD complet validat
 - [x] Scheletul modular app/Domain/*
 - [x] Configurare pachete (permission, activitylog, medialibrary, horizon, scout)
-- [/] Pipeline CI (pint, larastan, pest)
+- [x] Pipeline CI (pint, larastan, pest)
 - [x] AppServiceProvider cu restricții stricte
 - [x] Configurare inițială finalizată
 
@@ -47,11 +47,11 @@ Ultima actualizare: 2026-10-28
 - [x] CartController + rute cart (index/add/update/remove)
 - [x] CheckoutController + rute checkout (index/store/success)
 - [x] CheckoutService (placeOrder cu creare Order/OrderItem/Payment, calcul total)
-- [/] Servicii/Actions pentru coș (adăugare/actualizare/eliminare)
+- [x] Servicii/Actions pentru coș (adăugare/actualizare/eliminare)
 - [x] Sesiune/autentificat sync coș (merge implementat)
-- [/] Voucher/coupon logic
-- [/] Checkout flow (adrese, livrare, metodă plată)
-- [/] Validări și calcul prețuri (taxe/reduceri)
+- [x] Voucher/coupon logic
+- [x] Checkout flow (adrese, livrare, metodă plată)
+- [x] Validări și calcul prețuri (taxe/reduceri)
 
 ### Etapa 5: Gestiunea comenzilor și integrarea plăților
 - [x] Migrations: orders, order_items, payments

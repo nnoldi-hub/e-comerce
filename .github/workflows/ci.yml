@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Pint + Larastan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      APP_ENV: testing
+      # Cheie de test, fără valoare secretă (folosită doar în CI).
+      APP_KEY: base64:XRPFwjY8S3QyQ20rTJSo+Ukov8EzM2CHsB2c64sSYMs=
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_mysql, bcmath, gd, exif
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Pint (stil de cod)
+        run: vendor/bin/pint --test
+
+      - name: Larastan (analiză statică)
+        run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+
+      - name: Composer audit (informativ)
+        continue-on-error: true
+        run: composer audit --locked --no-interaction
+
+  tests:
+    name: Pest (MySQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: e_comerce_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -ppassword"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:XRPFwjY8S3QyQ20rTJSo+Ukov8EzM2CHsB2c64sSYMs=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: e_comerce_test
+      DB_USERNAME: root
+      DB_PASSWORD: password
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_mysql, bcmath, gd, exif
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build assets
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Prepare environment
+        run: cp .env.example .env
+
+      - name: Tests
+        # Fără --parallel: testul de concurență folosește aceeași bază MySQL.
+        run: php artisan test

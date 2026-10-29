@@ -48,6 +48,13 @@
             "npm install --ignore-scripts",
             "npm run build"
         ],
+        "ci": [
+    "@php vendor/bin/pint --test",
+    "@php vendor/bin/phpstan analyse --memory-limit=1G --no-progress",
+    "@php artisan config:clear --ansi",
+    "@php artisan test"
+],
+"format": "pint",
         "dev": [
             "Composer\\Config::disableProcessTimeout",
             "@php artisan dev"
