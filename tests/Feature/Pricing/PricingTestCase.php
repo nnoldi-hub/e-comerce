@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Pricing;
 
+use App\Domain\Checkout\DTOs\PlaceOrderData;
 use App\Domain\Pricing\DTOs\CartTotals;
 use App\Domain\Pricing\DTOs\PricingInput;
 use App\Domain\Pricing\PriceCalculator;
@@ -39,20 +40,26 @@ abstract class PricingTestCase extends TestCase
         }
     }
 
-    protected function makeVariant(int $price): ProductVariant
+    /**
+     * @param  array<string, mixed>  $variant  suprascrieri pentru variantă
+     * @param  array<string, mixed>  $product  suprascrieri pentru produs
+     */
+    protected function makeVariant(int $price, int $stock = 100, array $variant = [], array $product = []): ProductVariant
     {
-        $product = Product::forceCreate([
+        $productModel = Product::forceCreate(array_merge([
             'ulid' => (string) Str::ulid(),
             'name' => 'Produs '.Str::random(6),
             'slug' => 'produs-'.Str::lower(Str::random(10)),
             'status' => 'active',
-        ]);
+            'published_at' => now()->subDay(),
+        ], $product));
 
-        return ProductVariant::forceCreate([
-            'product_id' => $product->id,
+        return ProductVariant::forceCreate(array_merge([
+            'product_id' => $productModel->id,
             'sku' => 'SKU-'.Str::upper(Str::random(8)),
             'price' => $price,
-        ]);
+            'stock_on_hand' => $stock,
+        ], $variant));
     }
 
     /**
@@ -86,6 +93,9 @@ abstract class PricingTestCase extends TestCase
         ]);
     }
 
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
     protected function makeCoupon(array $attributes = []): Coupon
     {
         return Coupon::forceCreate(array_merge([
@@ -106,6 +116,31 @@ abstract class PricingTestCase extends TestCase
         ShippingRate::forceCreate(['shipping_method_id' => $method->id, 'min_subtotal' => 20000, 'max_subtotal' => null, 'price' => 0]);
 
         return $method;
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    protected function makeOrderData(int $shippingMethodId, array $overrides = []): PlaceOrderData
+    {
+        $address = [
+            'first_name' => 'Ion',
+            'last_name' => 'Popescu',
+            'phone' => '0712345678',
+            'address_line1' => 'Str. Exemplu 1',
+            'city' => 'București',
+            'postal_code' => '010101',
+            'country' => 'RO',
+        ];
+
+        return new PlaceOrderData(...array_merge([
+            'email' => 'client@example.com',
+            'billingAddress' => $address,
+            'shippingAddress' => $address,
+            'shippingMethodId' => $shippingMethodId,
+            'paymentMethod' => 'card',
+            'idempotencyKey' => (string) Str::uuid(),
+        ], $overrides));
     }
 
     protected function calculate(Cart $cart, ?PricingInput $input = null): CartTotals
