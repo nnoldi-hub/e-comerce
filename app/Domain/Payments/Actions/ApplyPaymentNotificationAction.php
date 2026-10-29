@@ -4,20 +4,23 @@ namespace App\Domain\Payments\Actions;
 
 use App\Domain\Orders\Actions\TransitionOrderStatusAction;
 use App\Domain\Payments\DTOs\PaymentNotification;
+use App\Domain\Payments\Events\UnexpectedPaymentReceived;
 use App\Domain\Payments\Exceptions\InvalidPaymentNotificationException;
+use App\Domain\Payments\Exceptions\PaymentException;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
-use App\Enums\StockMovementType;
-use App\Models\InventoryMovement;
 use App\Models\Order;
 use App\Models\Payment;
-use App\Models\ProductVariant;
-use App\Models\StockReservation;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Aplică rezultatul unei plăți: idempotent, verifică suma/moneda și, la succes,
- * transformă rezervările de stoc în vânzări (ledger SALE).
+ * Aplică rezultatul unei plăți: idempotent, verifică suma/moneda și actualizează
+ * comanda. Stocul NU se atinge aici: rezervarea rămâne până la expediere
+ * (vezi TransitionOrderStatusAction).
+ *
+ * Dacă banii au intrat dar comanda nu mai poate fi onorată (anulată, rambursată
+ * sau deja plătită), plata se înregistrează ca paid, comanda rămâne neschimbată
+ * și se emite UnexpectedPaymentReceived pentru o rambursare manuală.
  */
 class ApplyPaymentNotificationAction
 {
@@ -25,73 +28,143 @@ class ApplyPaymentNotificationAction
 
     public function execute(Payment $payment, PaymentNotification $notification): Payment
     {
-        return DB::transaction(function () use ($payment, $notification) {
+        [$result, $unexpected] = DB::transaction(function () use ($payment, $notification): array {
             $locked = Payment::query()->lockForUpdate()->findOrFail($payment->id);
 
             $this->assertMatches($locked, $notification);
 
             $payload = array_merge($locked->payload ?? [], $notification->payload);
 
-            if ($notification->status === PaymentStatus::PENDING) {
-                $locked->update([
-                    'provider_reference' => $notification->reference,
-                    'payload' => $payload,
-                ]);
-
-                return $locked;
-            }
-
-            if ($notification->status === PaymentStatus::FAILED) {
-                if ($locked->status !== PaymentStatus::PAID) {
-                    $locked->update(['status' => PaymentStatus::FAILED, 'payload' => $payload]);
-                }
-
-                return $locked;
-            }
-
-            if ($notification->status === PaymentStatus::PAID) {
-                if ($locked->status === PaymentStatus::PAID) {
-                    return $locked;
-                }
-
-                $locked->update([
-                    'provider_reference' => $notification->reference,
-                    'status' => PaymentStatus::PAID,
-                    'paid_at' => now(),
-                    'payload' => $payload,
-                ]);
-
-                $order = Order::query()->lockForUpdate()->findOrFail($locked->order_id);
-                $order->update(['payment_status' => PaymentStatus::PAID]);
-
-                $this->sellReservedStock($order);
-
-                if ($order->status->canTransitionTo(OrderStatus::PAID)) {
-                    $this->transitions->execute($order, OrderStatus::PAID, null, 'Plată confirmată');
-                }
-
-                return $locked->refresh();
-            }
-
-            if (in_array($notification->status, [PaymentStatus::REFUNDED, PaymentStatus::PARTIALLY_REFUNDED], true)) {
-                $locked->update([
-                    'status' => $notification->status,
-                    'payload' => $payload,
-                ]);
-
-                $order = Order::query()->lockForUpdate()->findOrFail($locked->order_id);
-                $order->update(['payment_status' => $notification->status]);
-
-                if ($notification->status === PaymentStatus::REFUNDED
-                    && $order->status->canTransitionTo(OrderStatus::REFUNDED)) {
-                    $this->transitions->execute($order, OrderStatus::REFUNDED, null, 'Plată rambursată');
-                }
-
-                return $locked->refresh();
-            }
-
-            return $locked;
+            return match ($notification->status) {
+                PaymentStatus::PENDING => [$this->recordPending($locked, $notification, $payload), null],
+                PaymentStatus::FAILED => [$this->recordFailed($locked, $payload), null],
+                PaymentStatus::PAID => $this->recordPaid($locked, $notification, $payload),
+                PaymentStatus::REFUNDED,
+                PaymentStatus::PARTIALLY_REFUNDED => [$this->recordRefund($locked, $notification, $payload), null],
+            };
         });
+
+        if ($unexpected !== null) {
+            report(new PaymentException(
+                "Plată încasată pentru o comandă care nu mai poate fi onorată (plata #{$result->id}, motiv: {$unexpected})."
+            ));
+
+            UnexpectedPaymentReceived::dispatch($result, $unexpected);
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function recordPending(Payment $payment, PaymentNotification $notification, array $payload): Payment
+    {
+        if ($payment->status === PaymentStatus::PENDING) {
+            $payment->update([
+                'provider_reference' => $notification->reference,
+                'payload' => $payload,
+            ]);
+        }
+
+        return $payment;
+    }
+
+    /**
+     * Doar o plată în așteptare poate eșua: un eșec întârziat nu strică una
+     * plătită sau rambursată.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function recordFailed(Payment $payment, array $payload): Payment
+    {
+        if ($payment->status === PaymentStatus::PENDING) {
+            $payment->update(['status' => PaymentStatus::FAILED, 'payload' => $payload]);
+        }
+
+        return $payment;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array{0: Payment, 1: string|null} plata și motivul neprevăzutului, dacă există
+     */
+    private function recordPaid(Payment $payment, PaymentNotification $notification, array $payload): array
+    {
+        $alreadyHandled = [PaymentStatus::PAID, PaymentStatus::REFUNDED, PaymentStatus::PARTIALLY_REFUNDED];
+
+        if (in_array($payment->status, $alreadyHandled, true)) {
+            return [$payment, null];
+        }
+
+        $order = Order::query()->lockForUpdate()->findOrFail($payment->order_id);
+        $problem = $this->problemWith($order);
+
+        if ($problem !== null) {
+            $payload['unexpected_reason'] = $problem;
+        }
+
+        // Banii au intrat indiferent de starea comenzii.
+        $payment->update([
+            'provider_reference' => $notification->reference,
+            'status' => PaymentStatus::PAID,
+            'paid_at' => now(),
+            'payload' => $payload,
+        ]);
+
+        if ($problem !== null) {
+            return [$payment, $problem];
+        }
+
+        $order->update(['payment_status' => PaymentStatus::PAID]);
+
+        // La ramburs, banii se încasează după livrare: statusul comenzii nu se schimbă.
+        if ($order->payment_method !== 'cod' && $order->status->canTransitionTo(OrderStatus::PAID)) {
+            $this->transitions->execute($order, OrderStatus::PAID, null, 'Plată confirmată');
+        }
+
+        return [$payment->refresh(), null];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function recordRefund(Payment $payment, PaymentNotification $notification, array $payload): Payment
+    {
+        $payment->update([
+            'status' => $notification->status,
+            'payload' => $payload,
+        ]);
+
+        $order = Order::query()->lockForUpdate()->findOrFail($payment->order_id);
+        $order->update(['payment_status' => $notification->status]);
+
+        if ($notification->status === PaymentStatus::REFUNDED
+            && $order->status->canTransitionTo(OrderStatus::REFUNDED)) {
+            $this->transitions->execute($order, OrderStatus::REFUNDED, null, 'Plată rambursată');
+        }
+
+        return $payment->refresh();
+    }
+
+    /**
+     * Motivul pentru care o plată sosită nu poate fi aplicată comenzii, sau null.
+     */
+    private function problemWith(Order $order): ?string
+    {
+        if ($order->status === OrderStatus::CANCELLED || $order->status === OrderStatus::REFUNDED) {
+            return 'order_closed';
+        }
+
+        if ($order->payment_status === PaymentStatus::PAID) {
+            return 'already_paid';
+        }
+
+        if ($order->payment_method === 'cod') {
+            return null;
+        }
+
+        return $order->status->canTransitionTo(OrderStatus::PAID) ? null : 'wrong_state';
     }
 
     private function assertMatches(Payment $payment, PaymentNotification $notification): void
@@ -107,49 +180,6 @@ class ApplyPaymentNotificationAction
             throw new InvalidPaymentNotificationException(
                 "Moneda notificată ({$notification->currency}) nu corespunde plății ({$payment->currency})."
             );
-        }
-    }
-
-    /**
-     * Rezervările devin vânzări: scade și stocul fizic, se scrie un rând SALE
-     * în ledger și rezervarea este marcată eliberată.
-     */
-    private function sellReservedStock(Order $order): void
-    {
-        $reservations = StockReservation::query()
-            ->where('order_id', $order->id)
-            ->whereNull('released_at')
-            ->orderBy('product_variant_id')
-            ->lockForUpdate()
-            ->get();
-
-        foreach ($reservations->groupBy('product_variant_id') as $variantId => $group) {
-            $variant = ProductVariant::query()->lockForUpdate()->find((int) $variantId);
-            $quantity = (int) $group->sum('quantity');
-
-            if ($variant !== null) {
-                $sold = min($quantity, max(0, $variant->stock_reserved));
-
-                if ($sold > 0) {
-                    $variant->stock_reserved -= $sold;
-                    $variant->stock_on_hand -= $sold;
-                    $variant->save();
-
-                    InventoryMovement::create([
-                        'product_variant_id' => $variant->id,
-                        'type' => StockMovementType::SALE,
-                        'quantity' => -$sold,
-                        'balance_after' => $variant->stock_on_hand,
-                        'reference_type' => 'order',
-                        'reference_id' => $order->id,
-                        'reason' => 'Plată confirmată pentru comanda '.$order->number,
-                    ]);
-                }
-            }
-
-            StockReservation::query()
-                ->whereIn('id', $group->pluck('id')->all())
-                ->update(['released_at' => now()]);
         }
     }
 }

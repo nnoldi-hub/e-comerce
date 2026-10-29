@@ -45,7 +45,7 @@ class StartPaymentAction
         $payment->save();
 
         try {
-            $initiation = $gateway->initiate($order);
+            $initiation = $gateway->initiate($order, $payment);
         } catch (Throwable $exception) {
             $payment->update([
                 'status' => PaymentStatus::FAILED,

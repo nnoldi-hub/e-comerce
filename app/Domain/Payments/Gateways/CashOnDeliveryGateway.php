@@ -7,6 +7,7 @@ use App\Domain\Payments\DTOs\PaymentInitiation;
 use App\Domain\Payments\DTOs\PaymentNotification;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
+use App\Models\Payment;
 use Illuminate\Http\Request;
 
 /**
@@ -20,7 +21,7 @@ class CashOnDeliveryGateway implements PaymentGateway
         return 'cod';
     }
 
-    public function initiate(Order $order): PaymentInitiation
+    public function initiate(Order $order, Payment $payment): PaymentInitiation
     {
         return new PaymentInitiation(
             provider: $this->provider(),
