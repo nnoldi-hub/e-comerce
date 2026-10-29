@@ -107,6 +107,7 @@ class ApplyPaymentNotificationAction
         // Banii au intrat indiferent de starea comenzii.
         $payment->update([
             'provider_reference' => $notification->reference,
+            'provider_intent' => $notification->intent ?? $payment->provider_intent,
             'status' => PaymentStatus::PAID,
             'paid_at' => now(),
             'payload' => $payload,

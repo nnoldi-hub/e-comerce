@@ -3,6 +3,7 @@
 namespace App\Domain\Payments\Actions;
 
 use App\Domain\Payments\DTOs\PaymentNotification;
+use App\Domain\Payments\DTOs\RefundNotification;
 use App\Domain\Payments\Exceptions\InvalidPaymentNotificationException;
 use App\Domain\Payments\Exceptions\PaymentNotFoundException;
 use App\Models\Payment;
@@ -37,12 +38,15 @@ class ProcessPaymentWebhookAction
     /** Cât timp o plată negăsită mai este considerată „încă nu a ajuns". */
     private const NOT_FOUND_GRACE_MINUTES = 10;
 
-    public function __construct(private readonly ApplyPaymentNotificationAction $apply) {}
+    public function __construct(
+        private readonly ApplyPaymentNotificationAction $apply,
+        private readonly ApplyRefundNotificationAction $applyRefund,
+    ) {}
 
     /**
      * @throws PaymentNotFoundException când providerul trebuie să reîncerce
      */
-    public function execute(PaymentNotification $notification): string
+    public function execute(PaymentNotification|RefundNotification $notification): string
     {
         $event = $this->recordEvent($notification);
 
@@ -90,7 +94,7 @@ class ProcessPaymentWebhookAction
         }
     }
 
-    private function recordEvent(PaymentNotification $notification): ?WebhookEvent
+    private function recordEvent(PaymentNotification|RefundNotification $notification): ?WebhookEvent
     {
         if ($notification->eventId === null) {
             return null;
@@ -115,8 +119,22 @@ class ProcessPaymentWebhookAction
         }
     }
 
-    private function process(PaymentNotification $notification): void
+    private function process(PaymentNotification|RefundNotification $notification): void
     {
+        if ($notification instanceof RefundNotification) {
+            $payment = $this->paymentForIntent($notification);
+
+            if ($payment === null) {
+                throw new PaymentNotFoundException(
+                    "Plata cu PaymentIntent '{$notification->intent}' nu există."
+                );
+            }
+
+            $this->applyRefund->execute($payment, $notification);
+
+            return;
+        }
+
         $payment = Payment::query()
             ->where('provider', $notification->provider)
             ->where('provider_reference', $notification->reference)
@@ -129,6 +147,22 @@ class ProcessPaymentWebhookAction
         }
 
         $this->apply->execute($payment, $notification);
+    }
+
+    /**
+     * Plățile confirmate înainte de coloana `provider_intent` au PaymentIntent-ul
+     * doar în payload-ul evenimentului; se caută și acolo.
+     */
+    private function paymentForIntent(RefundNotification $notification): ?Payment
+    {
+        return Payment::query()
+            ->where('provider', $notification->provider)
+            ->where('provider_intent', $notification->intent)
+            ->first()
+            ?? Payment::query()
+                ->where('provider', $notification->provider)
+                ->where('payload->data->object->payment_intent', $notification->intent)
+                ->first();
     }
 
     private function reject(?WebhookEvent $event, InvalidPaymentNotificationException $exception): string

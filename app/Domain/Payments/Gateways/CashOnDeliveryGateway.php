@@ -55,4 +55,9 @@ class CashOnDeliveryGateway implements PaymentGateway
     {
         return new RefundResult('CODREF-'.$idempotencyKey, RefundStatus::SUCCEEDED);
     }
+
+    public function refundStatus(Payment $payment, string $reference): RefundResult
+    {
+        return new RefundResult($reference, RefundStatus::SUCCEEDED);
+    }
 }

@@ -5,6 +5,7 @@ namespace App\Domain\Payments\Gateways;
 use App\Domain\Payments\Contracts\PaymentGateway;
 use App\Domain\Payments\DTOs\PaymentInitiation;
 use App\Domain\Payments\DTOs\PaymentNotification;
+use App\Domain\Payments\DTOs\RefundNotification;
 use App\Domain\Payments\DTOs\RefundResult;
 use App\Domain\Payments\Exceptions\PaymentException;
 use App\Enums\PaymentStatus;
@@ -140,6 +141,7 @@ class StripeGateway implements PaymentGateway
                         'amount' => $amount,
                         'metadata' => array_filter([
                             'order_id' => (string) $payment->order_id,
+                            'idempotency_key' => $idempotencyKey,
                             'reason' => $reason,
                         ]),
                     ]))
@@ -154,13 +156,36 @@ class StripeGateway implements PaymentGateway
             throw new PaymentException('Răspuns invalid de la Stripe: lipsește id-ul rambursării.');
         }
 
-        $status = match ($data['status'] ?? null) {
+        return new RefundResult($id, $this->refundStatusFrom($data['status'] ?? null), ['refund' => $data]);
+    }
+
+    public function refundStatus(Payment $payment, string $reference): RefundResult
+    {
+        if ($this->secret === '') {
+            throw new PaymentException('Cheia secretă Stripe nu este configurată.');
+        }
+
+        try {
+            $data = $this->decode(
+                Http::withToken($this->secret)
+                    ->timeout(15)
+                    ->connectTimeout(5)
+                    ->get(self::API_BASE.'/refunds/'.$reference)
+            );
+        } catch (ConnectionException $exception) {
+            throw new PaymentException('Stripe nu a răspuns la timp: '.$exception->getMessage(), 0, $exception);
+        }
+
+        return new RefundResult($reference, $this->refundStatusFrom($data['status'] ?? null), ['refund' => $data]);
+    }
+
+    private function refundStatusFrom(mixed $status): RefundStatus
+    {
+        return match ($status) {
             'succeeded' => RefundStatus::SUCCEEDED,
             'failed', 'canceled' => RefundStatus::FAILED,
             default => RefundStatus::PENDING,
         };
-
-        return new RefundResult($id, $status, ['refund' => $data]);
     }
 
     public function verifyWebhook(Request $request): bool
@@ -206,7 +231,7 @@ class StripeGateway implements PaymentGateway
      *  - async_payment_failed, expired -> FAILED.
      * Orice alt eveniment este ignorat.
      */
-    public function parseWebhook(Request $request): ?PaymentNotification
+    public function parseWebhook(Request $request): PaymentNotification|RefundNotification|null
     {
         try {
             $event = json_decode($request->getContent(), true, 512, JSON_THROW_ON_ERROR);
@@ -224,6 +249,10 @@ class StripeGateway implements PaymentGateway
 
         if (! is_string($type) || ! is_array($object)) {
             return null;
+        }
+
+        if (str_starts_with($type, 'refund.')) {
+            return $this->parseRefund($event, $type, $object);
         }
 
         $status = match ($type) {
@@ -249,6 +278,53 @@ class StripeGateway implements PaymentGateway
             status: $status,
             amount: isset($object['amount_total']) ? (int) $object['amount_total'] : null,
             currency: isset($object['currency']) ? strtoupper((string) $object['currency']) : null,
+            eventId: isset($event['id']) ? (string) $event['id'] : null,
+            type: $type,
+            payload: $event,
+            intent: isset($object['payment_intent']) && is_string($object['payment_intent']) && $object['payment_intent'] !== ''
+                ? $object['payment_intent']
+                : null,
+        );
+    }
+
+    /**
+     * refund.created / refund.updated / refund.failed: obiectul este rambursarea.
+     * Acoperă și rambursările făcute direct din panoul Stripe. `charge.refunded`
+     * este ignorat intenționat (agregat, fără detaliile rambursării).
+     *
+     * @param  array<mixed>  $event
+     * @param  array<mixed>  $object
+     */
+    private function parseRefund(array $event, string $type, array $object): ?RefundNotification
+    {
+        if (! in_array($type, ['refund.created', 'refund.updated', 'refund.failed'], true)) {
+            return null;
+        }
+
+        $id = $object['id'] ?? null;
+        $intent = $object['payment_intent'] ?? null;
+
+        if (! is_string($id) || $id === '' || ! is_string($intent) || $intent === '') {
+            return null;
+        }
+
+        $status = match ($object['status'] ?? null) {
+            'succeeded' => RefundStatus::SUCCEEDED,
+            'failed', 'canceled' => RefundStatus::FAILED,
+            default => $type === 'refund.failed' ? RefundStatus::FAILED : RefundStatus::PENDING,
+        };
+
+        $metadata = is_array($object['metadata'] ?? null) ? $object['metadata'] : [];
+        $key = $metadata['idempotency_key'] ?? null;
+
+        return new RefundNotification(
+            provider: $this->provider(),
+            intent: $intent,
+            refundReference: $id,
+            status: $status,
+            amount: isset($object['amount']) ? (int) $object['amount'] : null,
+            currency: isset($object['currency']) ? strtoupper((string) $object['currency']) : null,
+            localKey: is_string($key) && $key !== '' ? $key : null,
             eventId: isset($event['id']) ? (string) $event['id'] : null,
             type: $type,
             payload: $event,
