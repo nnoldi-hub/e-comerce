@@ -10,9 +10,12 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -46,5 +49,9 @@ class AppServiceProvider extends ServiceProvider
                 return true;
             }
         });
+
+        // Larg pentru ca retrimiterile legitime ale providerului să încapă,
+        // dar suficient de strâns cât să oprească inundarea endpoint-ului.
+        RateLimiter::for('webhooks', fn (Request $request) => Limit::perMinute(600)->by($request->ip()));
     }
 }

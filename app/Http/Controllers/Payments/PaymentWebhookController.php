@@ -3,12 +3,13 @@
 namespace App\Http\Controllers\Payments;
 
 use App\Domain\Payments\Actions\ProcessPaymentWebhookAction;
-use App\Domain\Payments\Exceptions\InvalidPaymentNotificationException;
+use App\Domain\Payments\Exceptions\PaymentNotFoundException;
 use App\Domain\Payments\Exceptions\UnsupportedGatewayException;
 use App\Domain\Payments\PaymentGatewayManager;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class PaymentWebhookController extends Controller
 {
@@ -25,7 +26,12 @@ class PaymentWebhookController extends Controller
         }
 
         if (! $provider->verifyWebhook($request)) {
-            abort(403, 'Semnătură de webhook invalidă.');
+            Log::warning('Webhook de plată respins: semnătură invalidă.', [
+                'gateway' => $gateway,
+                'ip' => $request->ip(),
+            ]);
+
+            return response()->json(['status' => 'invalid_signature'], 403);
         }
 
         $notification = $provider->parseWebhook($request);
@@ -35,14 +41,15 @@ class PaymentWebhookController extends Controller
         }
 
         try {
-            $process->execute($notification);
-        } catch (InvalidPaymentNotificationException $exception) {
-            report($exception);
+            $outcome = $process->execute($notification);
+        } catch (PaymentNotFoundException $exception) {
+            // Probabil o cursă: providerul reîncearcă în următoarele minute.
+            return response()->json(['status' => 'retry', 'message' => $exception->getMessage()], 409);
+        }
 
-            return response()->json([
-                'status' => 'rejected',
-                'message' => $exception->getMessage(),
-            ], 422);
+        if ($outcome === ProcessPaymentWebhookAction::REJECTED) {
+            // Eroare permanentă, deja înregistrată: 202 oprește retrimiterile.
+            return response()->json(['status' => 'rejected'], 202);
         }
 
         return response()->json(['status' => 'ok']);
