@@ -2,6 +2,7 @@
 
 namespace App\Domain\Checkout\Actions;
 
+use App\Domain\Orders\Actions\TransitionOrderStatusAction;
 use App\Enums\OrderStatus;
 use App\Models\CouponUsage;
 use App\Models\Order;
@@ -16,6 +17,8 @@ use Illuminate\Support\Facades\DB;
 class ReleaseExpiredReservations
 {
     private const UNPAID = [OrderStatus::PENDING, OrderStatus::AWAITING_PAYMENT];
+
+    public function __construct(private readonly TransitionOrderStatusAction $transitions) {}
 
     public function execute(int $limit = 200): int
     {
@@ -70,7 +73,13 @@ class ReleaseExpiredReservations
         $reservation->update(['released_at' => now()]);
 
         if ($order !== null) {
-            $order->update(['status' => OrderStatus::CANCELLED]);
+            $this->transitions->execute(
+                $order,
+                OrderStatus::CANCELLED,
+                null,
+                'Rezervarea de stoc a expirat înainte de plată',
+            );
+
             CouponUsage::query()->where('order_id', $order->id)->delete();
         }
 

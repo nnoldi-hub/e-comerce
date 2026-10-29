@@ -18,3 +18,7 @@ use App\Http\Controllers\Checkout\CheckoutController;
 Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
 Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
 Route::get('/checkout/success', [CheckoutController::class, 'success'])->name('checkout.success');
+
+use App\Http\Controllers\Payments\PaymentWebhookController;
+
+Route::post('/webhooks/payments/{gateway}', PaymentWebhookController::class)->name('webhooks.payments');

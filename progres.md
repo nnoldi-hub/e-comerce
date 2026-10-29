@@ -2,14 +2,14 @@
 
 Proiect: E-commerce pe Laravel 13
 Creat: 2026-10-27
-Ultima actualizare: 2026-10-28
+Ultima actualizare: 2026-10-29
 
 ## Status
 - [x] Etapa 1: Arhitectură, ERD și configurare inițială (completă)
 - [x] Etapa 2: Autentificare, roluri și securitate (ACL) (completă)
 - [x] Etapa 3: Catalogul de produse (management complex) (completă)
 - [/] Etapa 4: Coșul de cumpărături și motorul de checkout
-- [/] Etapa 5: Gestiunea comenzilor și integrarea plăților
+- [x] Etapa 5: Gestiunea comenzilor și integrarea plăților (completă)
 - [/] Etapa 6: Panoul de administrare profesional
 - [/] Etapa 7: Optimizări, testare și lansare
 
@@ -56,9 +56,16 @@ Ultima actualizare: 2026-10-28
 ### Etapa 5: Gestiunea comenzilor și integrarea plăților
 - [x] Migrations: orders, order_items, payments
 - [x] Modele Order/OrderItem/Payment completate
-- [/] Status workflow comenzi
-- [/] Integrare gateway plată
-- [/] Email notificări
+- [x] Workflow statusuri cu tranziții validate (`OrderStatus::allowedTransitions`), acțiune unică `TransitionOrderStatusAction` și eveniment `OrderStatusChanged`
+- [x] Istoric statusuri în `order_status_histories` (status anterior/nou, comentariu, utilizator)
+- [x] Coloanele de status mutate din `enum` MySQL în `varchar` (audit ERD #3) + `payment_method` pe comenzi
+- [x] Abordare gateway plăți: contract `PaymentGateway`, `PaymentGatewayManager`, implementări manual/COD/Stripe Checkout
+- [x] Inițiere automată plată la plasarea comenzii și redirect către gateway când există URL
+- [x] Webhook plăți cu verificare semnătură Stripe, rute fără CSRF și deduplicare în `webhook_events`
+- [x] Confirmare plată idempotentă, verificare sumă/monedă, actualizare status comandă
+- [x] Conversie rezervări de stoc în vânzări la plată: scade `stock_on_hand`/`stock_reserved` și scrie mișcare `SALE` în ledger
+- [x] Email notificări: confirmare comandă și schimbări de status (șabloane HTML)
+- [x] Teste: workflow statusuri, plăți manual/COD/Stripe, webhook-uri, emailuri
 
 ### Etapa 6: Panoul de administrare profesional
 - [/] Filament/CRUD admin
@@ -73,3 +80,4 @@ Ultima actualizare: 2026-10-28
 ## Log activitate
 - 2026-10-28: Verificare stare proiect - progres.md citit, migrations pentru Cart/Orders/Payments existente. Se continuă Etapa 4.
 - 2026-10-28: Creată structură Domain/Cart și Domain/Checkout; adăugat CartService (cu merge sesiune->utilizator autentificat), CartController + rute; CheckoutController + rute; CheckoutService pentru creare Order/OrderItem/Payment; completate modele Order/OrderItem/Payment. Updated progres.md.
+- 2026-10-29: Finalizată Etapa 5. Adăugat workflow de statusuri cu tranziții validate și istoric (`order_status_histories`), coloane status pe varchar + `orders.payment_method`. Implementat domeniul `Domain/Payments`: contract gateway, manager, gateway-uri manual/COD/Stripe Checkout, inițiere plată la `OrderPlaced`, webhook semnat cu deduplicare (`webhook_events`) și confirmare idempotentă care transformă rezervările în vânzări (`inventory_movements` SALE). Adăugat emailuri de confirmare și schimbare status. Teste: 96 pass, Pint și PHPStan level 6 pass. Migrări rulate.
