@@ -56,6 +56,36 @@ class CheckoutRequest extends FormRequest
         ];
     }
 
+    /**
+     * Numele câmpurilor în mesajele de eroare (altfel apare „shipping method id”).
+     *
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'email' => 'adresa de email',
+            'first_name' => 'prenumele',
+            'last_name' => 'numele',
+            'phone' => 'telefonul',
+            'address_line1' => 'adresa',
+            'address_line2' => 'detaliile adresei',
+            'city' => 'localitatea',
+            'county' => 'județul',
+            'postal_code' => 'codul poștal',
+            'country' => 'țara',
+            'company_name' => 'denumirea firmei',
+            'cui' => 'CUI-ul',
+            'reg_com' => 'numărul de înregistrare',
+            'shipping_method_id' => 'metoda de livrare',
+            'payment_method' => 'metoda de plată',
+            'coupon_code' => 'codul de reducere',
+            'customer_note' => 'observațiile',
+            'idempotency_key' => 'cheia comenzii',
+            'terms' => 'acceptarea termenilor',
+        ];
+    }
+
     public function toData(?int $userId): PlaceOrderData
     {
         $v = $this->validated();

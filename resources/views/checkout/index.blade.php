@@ -38,16 +38,16 @@
             </section>
 
             <section aria-labelledby="h-company">
-                <label class="flex items-center gap-2 text-sm font-medium">
-                    <input type="checkbox" name="is_company" value="1" class="peer size-4" @checked(old('is_company'))>
-                    <span id="h-company">Comand ca firmă (persoană juridică)</span>
-                </label>
-                <div id="date-firma" class="mt-3 grid gap-4 sm:grid-cols-3">
-                    <x-field name="company_name" label="Denumire firmă" autocomplete="organization" />
-                    <x-field name="cui" label="CUI" hint="Ex. RO1234567" />
-                    <x-field name="reg_com" label="Nr. Reg. Com." />
+                <div>
+                    <input id="is_company" type="checkbox" name="is_company" value="1" class="peer size-4 align-middle" @checked(old('is_company'))>
+                    <label for="is_company" id="h-company" class="ml-2 align-middle text-sm font-medium">Comand ca firmă (persoană juridică)</label>
+
+                    <div class="mt-3 hidden gap-4 peer-checked:grid sm:grid-cols-3">
+                        <x-field name="company_name" label="Denumire firmă" autocomplete="off" />
+                        <x-field name="cui" label="CUI" hint="Ex. RO1234567" autocomplete="off" />
+                        <x-field name="reg_com" label="Nr. Reg. Com." autocomplete="off" />
+                    </div>
                 </div>
-                <p class="mt-1 text-xs text-zinc-500">Completează câmpurile doar dacă bifezi „Comand ca firmă”.</p>
             </section>
 
             <section aria-labelledby="h-ship">
