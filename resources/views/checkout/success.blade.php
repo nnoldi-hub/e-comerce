@@ -5,6 +5,7 @@
             Comanda <strong>{{ $order->number }}</strong> a fost înregistrată.
             Status: <strong>{{ $order->status->label() }}</strong>.
         </p>
+        <p class="mt-1 text-sm text-zinc-500">Am trimis confirmarea la <strong>{{ $order->email }}</strong>.</p>
 
         <table class="mt-6 w-full text-sm">
             <caption class="sr-only">Produsele comandate</caption>
@@ -12,21 +13,34 @@
                 @foreach ($order->items as $item)
                     <tr class="border-b border-zinc-100">
                         <td class="py-2">{{ $item->name }} <span class="text-zinc-500">({{ $item->sku }})</span></td>
-                        <td class="py-2 text-center">{{ $item->quantity }}</td>
+                        <td class="py-2 text-center">× {{ $item->quantity }}</td>
                         <td class="py-2 text-right"><x-price :amount="$item->line_total" :currency="$order->currency" /></td>
                     </tr>
                 @endforeach
             </tbody>
         </table>
 
-        <p class="mt-5 text-base">Total: <strong><x-price :amount="$order->grand_total" :currency="$order->currency" /></strong></p>
+        <x-order-totals :order="$order" class="mt-5" />
 
-        <p class="mt-4 text-sm text-zinc-600">
-            Metoda de plată: {{ $order->payment_method === 'cod' ? 'ramburs la livrare' : 'card bancar' }}.
-            @if ($order->payment_status->value === 'pending')
-                Plata este în așteptare; vei primi un email când este confirmată.
-            @endif
-        </p>
+        <div class="mt-6 grid gap-4 text-sm sm:grid-cols-2">
+            <div>
+                <h2 class="font-semibold">Livrare la</h2>
+                <p class="mt-1 text-zinc-600">
+                    @foreach (\App\Support\AddressFormatter::lines($order->shipping_address) as $line)
+                        {{ $line }}@unless ($loop->last)<br>@endunless
+                    @endforeach
+                </p>
+            </div>
+            <div>
+                <h2 class="font-semibold">Plată</h2>
+                <p class="mt-1 text-zinc-600">
+                    {{ $order->payment_method === 'cod' ? 'Ramburs la livrare' : 'Card bancar' }}.
+                    @if ($order->payment_status->value === 'pending')
+                        Plata este în așteptare; vei primi un email când este confirmată.
+                    @endif
+                </p>
+            </div>
+        </div>
 
         @if ($order->payment_method === 'card' && $order->status === \App\Enums\OrderStatus::AWAITING_PAYMENT)
             <form method="POST"
@@ -37,6 +51,6 @@
             </form>
         @endif
 
-        <p class="mt-6"><a href="{{ route('cart.index') }}" class="text-brand-600 hover:underline">Înapoi la coș</a></p>
+        <p class="mt-6"><a href="{{ route('home') }}" class="text-brand-600 hover:underline">Continuă cumpărăturile</a></p>
     </div>
 </x-layouts.app>

@@ -14,6 +14,7 @@ use App\Models\Payment;
 use App\Models\Refund;
 use App\Models\Shipment;
 use App\Models\User;
+use App\Support\AddressFormatter;
 use App\ValueObjects\Money;
 use BackedEnum;
 use Filament\Actions\ViewAction;
@@ -128,26 +129,7 @@ class OrderResource extends Resource
      */
     public static function addressLines(?array $address): array
     {
-        $a = $address ?? [];
-        $get = fn (string $key): string => is_scalar($a[$key] ?? null) ? trim((string) $a[$key]) : '';
-
-        $country = strtoupper($get('country'));
-        $locality = trim($get('postal_code').' '.$get('city'));
-        $county = $get('county');
-
-        $lines = [
-            trim($get('first_name').' '.$get('last_name')),
-            $get('company_name'),
-            $get('cui') !== '' ? 'CUI: '.$get('cui') : '',
-            $get('reg_com') !== '' ? 'Reg. Com.: '.$get('reg_com') : '',
-            $get('address_line1'),
-            $get('address_line2'),
-            $county !== '' && $locality !== '' ? $locality.', jud. '.$county : ($locality !== '' ? $locality : $county),
-            $country === 'RO' ? 'România' : $country,
-            $get('phone') !== '' ? 'Tel: '.$get('phone') : '',
-        ];
-
-        return array_values(array_filter($lines, fn (string $line): bool => $line !== ''));
+        return AddressFormatter::lines($address);
     }
 
     public static function table(Table $table): Table

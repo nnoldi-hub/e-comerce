@@ -1,12 +1,5 @@
-<!DOCTYPE html>
-<html lang="ro">
-<head>
-    <meta charset="utf-8">
-    <title>Comanda {{ $order->number }} a fost expediată</title>
-</head>
-<body style="margin:0;padding:24px;background:#f4f4f5;font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#18181b;">
-<div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:28px;">
-    <h1 style="margin:0 0 12px;font-size:22px;">Comanda ta este pe drum</h1>
+<x-mail.layout :title="'Comanda '.($order->number).' a fost expediată'" :preheader="'Comanda '.($order->number).' este pe drum.'">
+    <h1 style="margin:0 0 8px;font-size:22px;">Comanda ta este pe drum</h1>
     <p style="margin:0 0 16px;color:#52525b;">
         Comanda <strong>{{ $order->number }}</strong> a fost predată curierului
         <strong>{{ $shipment->carrier }}</strong>.
@@ -18,7 +11,7 @@
 
     @if ($shipment->tracking_url)
         <p style="margin:16px 0 0;">
-            <a href="{{ $shipment->tracking_url }}" style="color:#2563eb;">Urmărește coletul</a>
+            <a href="{{ $shipment->tracking_url }}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600;">Urmărește coletul</a>
         </p>
     @endif
 
@@ -28,6 +21,4 @@
             <strong>{{ number_format($order->grand_total->amount() / 100, 2, ',', '.') }} {{ $order->currency }}</strong>.
         </p>
     @endif
-</div>
-</body>
-</html>
+</x-mail.layout>
