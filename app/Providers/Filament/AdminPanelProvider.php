@@ -31,6 +31,9 @@ class AdminPanelProvider extends PanelProvider
             ->authGuard('web')
             ->login()
             ->profile()
+            // Clopoțelul: alertele de stoc ajung și aici (tabelul `notifications`).
+            ->databaseNotifications()
+            ->databaseNotificationsPolling('60s')
             // 2FA obligatoriu pentru tot personalul: după autentificare, cine nu
             // are încă 2FA este trimis să-l configureze (aplicație + coduri de recuperare).
             ->multiFactorAuthentication([
