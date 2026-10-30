@@ -76,13 +76,23 @@ return [
     | by Laravel's translation / localization methods. This option can be
     | set to any locale for which you plan to have translation strings.
     |
+    | Magazinul este în română; engleza rămâne doar fallback pentru cheile
+    | care ar lipsi dintr-o traducere. Traducerile (`lang/ro`) vin de la
+    | `laravel-lang/common` și se comit în repo (vezi docs/adr/0015).
+    |
     */
 
-    'locale' => env('APP_LOCALE', 'en'),
+    'locale' => env('APP_LOCALE', 'ro'),
 
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 
     'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
+
+    /*
+    | Limba panoului de administrare, aplicată doar cererilor panoului
+    | (vezi AppServiceProvider). Poate diferi de limba vitrinei.
+    */
+    'admin_locale' => env('ADMIN_LOCALE', 'ro'),
 
     /*
     |--------------------------------------------------------------------------
