@@ -88,3 +88,12 @@ Ultima actualizare: 2026-10-29
 - 2026-10-28: Creată structură Domain/Cart și Domain/Checkout; adăugat CartService (cu merge sesiune->utilizator autentificat), CartController + rute; CheckoutController + rute; CheckoutService pentru creare Order/OrderItem/Payment; completate modele Order/OrderItem/Payment. Updated progres.md.
 - 2026-10-29: Finalizată Etapa 5. Adăugat workflow de statusuri cu tranziții validate și istoric (`order_status_histories`), coloane status pe varchar + `orders.payment_method`. Implementat domeniul `Domain/Payments`: contract gateway, manager, gateway-uri manual/COD/Stripe Checkout, inițiere plată la `OrderPlaced`, webhook semnat cu deduplicare (`webhook_events`) și confirmare idempotentă care transformă rezervările în vânzări (`inventory_movements` SALE). Adăugat emailuri de confirmare și schimbare status. Teste: 96 pass, Pint și PHPStan level 6 pass. Migrări rulate.
 - 2026-10-30: Etapa 6 (6A-6E) în branch-ul `feat/stage-6-admin`: panou Filament cu 2FA obligatoriu, catalog, comenzi, audit + alerte de stoc, dashboard și export CSV. 291 de teste, Pint și PHPStan level 6 trec. Urmează imaginile (6B-3).
+
+## Etapa 7 — Optimizări, testare, lansare (2026-10-30)
+- 7A: indexuri pentru rapoarte, teste anti-N+1 (QueryCountTest), headere de securitate
+- 7B: proxy-uri de încredere (config/security.php), limitatoare de rată cart/checkout/webhooks/health, CI pe PHP 8.3 cu composer audit --no-dev, Dependabot
+- 7C: HealthCheck, comanda ops:check, GET /health cu token, bătaie de inimă a planificatorului; Nginx, Supervisor/systemd, cron, logrotate, backup-db.sh, deploy.sh, .env.production.example
+- 7E: docs/operations/deployment.md (instalare, deploy, rollback, backup, listă de lansare), ADR 0016 și 0017
+- 7F: smoke tests card și COD de la checkout la rambursare
+- 355 teste, 1274 aserțiuni
+- Rămas: Sentry (opțional), CSP pentru storefront (Etapa 8)
