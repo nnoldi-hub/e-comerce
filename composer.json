@@ -7,6 +7,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
+        "filament/filament": "^5.11",
         "laravel/fortify": "^1.41",
         "laravel/framework": "^13.17",
         "laravel/scout": "^11.9",
@@ -49,12 +50,12 @@
             "npm run build"
         ],
         "ci": [
-    "@php vendor/bin/pint --test",
-    "@php vendor/bin/phpstan analyse --memory-limit=1G --no-progress",
-    "@php artisan config:clear --ansi",
-    "@php artisan test"
-],
-"format": "pint",
+            "@php vendor/bin/pint --test",
+            "@php vendor/bin/phpstan analyse --memory-limit=1G --no-progress",
+            "@php artisan config:clear --ansi",
+            "@php artisan test"
+        ],
+        "format": "pint",
         "dev": [
             "Composer\\Config::disableProcessTimeout",
             "@php artisan dev"
@@ -65,7 +66,8 @@
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@php artisan package:discover --ansi"
+            "@php artisan package:discover --ansi",
+            "@php artisan filament:upgrade"
         ],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
