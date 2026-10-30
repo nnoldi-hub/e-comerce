@@ -2,6 +2,7 @@
 
 namespace App\Domain\Inventory;
 
+use App\Domain\Catalog\ProductAggregates;
 use App\Enums\StockMovementType;
 use App\Models\InventoryMovement;
 use App\Models\Order;
@@ -71,6 +72,10 @@ class OrderStockDeducter
 
             $reservation->update(['released_at' => now()]);
         }
+
+        app(ProductAggregates::class)->refresh(
+            ...$variants->pluck('product_id')->map(fn ($id) => (int) $id)->unique()->values()->all(),
+        );
 
         return $reservations->count();
     }

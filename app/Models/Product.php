@@ -44,9 +44,11 @@ class Product extends Model implements HasMedia
 
     public function getSlugOptions(): SlugOptions
     {
+        // Slug stabil: redenumirea produsului nu schimbă URL-ul (SEO, link-uri salvate).
         return SlugOptions::create()
             ->generateSlugsFrom('name')
-            ->saveSlugsTo('slug');
+            ->saveSlugsTo('slug')
+            ->doNotGenerateSlugsOnUpdate();
     }
 
     public function brand(): BelongsTo
