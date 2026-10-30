@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
  * @property int $order_id
  * @property string $provider
  * @property string|null $provider_reference
+ * @property string|null $provider_intent
  * @property string|null $method
  * @property Money $amount
  * @property string $currency
@@ -28,7 +29,7 @@ class Payment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'order_id', 'provider', 'provider_reference', 'method',
+        'order_id', 'provider', 'provider_reference', 'provider_intent', 'method',
         'amount', 'currency', 'status', 'payload', 'paid_at',
     ];
 

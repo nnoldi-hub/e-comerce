@@ -13,6 +13,13 @@
         Status: <strong>{{ $order->status->label() }}</strong>.
     </p>
 
+    @if (session('payment_error'))
+        <p style="margin:0 0 16px;padding:12px;border-radius:8px;background:#fef2f2;color:#991b1b;">{{ session('payment_error') }}</p>
+    @endif
+    @if (session('payment_notice'))
+        <p style="margin:0 0 16px;padding:12px;border-radius:8px;background:#f0fdf4;color:#166534;">{{ session('payment_notice') }}</p>
+    @endif
+
     <table style="width:100%;border-collapse:collapse;font-size:14px;">
         @foreach ($order->items as $item)
             <tr>
@@ -35,6 +42,18 @@
             Plata este în așteptare; vei primi un email când este confirmată.
         @endif
     </p>
+
+    @if ($order->payment_method === 'card' && $order->status === \App\Enums\OrderStatus::AWAITING_PAYMENT)
+        <form method="POST"
+              action="{{ \Illuminate\Support\Facades\URL::temporarySignedRoute('checkout.pay', now()->addHours(24), ['order' => $order->number]) }}"
+              style="margin:20px 0 0;">
+            @csrf
+            <button type="submit"
+                    style="padding:12px 20px;border:0;border-radius:8px;background:#2563eb;color:#fff;font-size:16px;cursor:pointer;">
+                Plătește acum
+            </button>
+        </form>
+    @endif
 
     <p style="margin:24px 0 0;">
         <a href="{{ route('cart.index') }}" style="color:#2563eb;">Înapoi la coș</a>

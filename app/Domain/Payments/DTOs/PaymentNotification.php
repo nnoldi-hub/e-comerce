@@ -8,6 +8,7 @@ final readonly class PaymentNotification
 {
     /**
      * @param  array<string, mixed>  $payload
+     * @param  string|null  $intent  PaymentIntent al procesatorului (leagă ulterior rambursările de plată)
      */
     public function __construct(
         public string $provider,
@@ -18,5 +19,6 @@ final readonly class PaymentNotification
         public ?string $eventId = null,
         public ?string $type = null,
         public array $payload = [],
+        public ?string $intent = null,
     ) {}
 }

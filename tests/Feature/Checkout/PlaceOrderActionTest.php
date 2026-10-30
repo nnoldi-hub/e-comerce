@@ -64,8 +64,7 @@ class PlaceOrderActionTest extends PricingTestCase
         $reservation = StockReservation::query()->where('order_id', $order->id)->firstOrFail();
         $this->assertSame(2, $reservation->quantity);
         $this->assertNull($reservation->released_at);
-        $this->assertTrue($reservation->expires_at->between(now()->addMinutes(29), now()->addMinutes(31)));
-
+        $this->assertTrue($reservation->expires_at->between(now()->addMinutes(44), now()->addMinutes(46)));
         $this->assertSame(0, CartItem::query()->where('cart_id', $cart->id)->count());
     }
 
