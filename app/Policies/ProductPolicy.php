@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\Product;
 use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
@@ -39,6 +40,21 @@ class ProductPolicy
     }
 
     public function delete(User $user, $product): bool
+    {
+        return $user->can('products.delete');
+    }
+
+    public function deleteAny(User $user): bool
+    {
+        return $user->can('products.delete');
+    }
+
+    public function restore(User $user, Product $product): bool
+    {
+        return $user->can('products.delete');
+    }
+
+    public function restoreAny(User $user): bool
     {
         return $user->can('products.delete');
     }

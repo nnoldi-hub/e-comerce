@@ -29,6 +29,9 @@ class TransitionOrderStatusAction
         private readonly OrderStockReleaser $releaser,
     ) {}
 
+    /**
+     * @throws InvalidOrderTransitionException tranziție nepermisă sau comandă plătită
+     */
     public function execute(
         Order $order,
         OrderStatus $to,

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class ProductVariant extends Model
 {
@@ -33,6 +34,18 @@ class ProductVariant extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * Opțiunile variantei (ex. Culoare: Roșu). Se scriu doar prin
+     * SaveVariantAction, care completează și product_id în pivot.
+     */
+    /**
+     * @return BelongsToMany<AttributeValue, $this>
+     */
+    public function attributeValues(): BelongsToMany
+    {
+        return $this->belongsToMany(AttributeValue::class, 'product_attribute_values', 'product_variant_id', 'attribute_value_id');
     }
 
     public function getAvailableStockAttribute(): int
