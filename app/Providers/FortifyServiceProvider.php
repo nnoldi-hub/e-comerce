@@ -37,6 +37,15 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
         Fortify::redirectUserForTwoFactorAuthenticationUsing(RedirectIfTwoFactorAuthenticatable::class);
 
+        // Paginile de autentificare ale vitrinei (resources/views/auth).
+        Fortify::loginView(fn () => view('auth.login'));
+        Fortify::registerView(fn () => view('auth.register'));
+        Fortify::requestPasswordResetLinkView(fn () => view('auth.forgot-password'));
+        Fortify::resetPasswordView(fn () => view('auth.reset-password'));
+        Fortify::verifyEmailView(fn () => view('auth.verify-email'));
+        Fortify::confirmPasswordView(fn () => view('auth.confirm-password'));
+        Fortify::twoFactorChallengeView(fn () => view('auth.two-factor-challenge'));
+
         // Autentificarea magazinului este doar pentru clienți. Personalul (cu
         // `access-admin`) intră exclusiv prin /admin/login, unde Filament
         // cere și al doilea factor; altfel, o parolă furată ar deschide /admin

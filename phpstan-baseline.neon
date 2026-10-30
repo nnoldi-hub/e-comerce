@@ -79,18 +79,6 @@ parameters:
 			path: app/Domain/Pricing/Pipes/CartPricing.php
 
 		-
-			message: '#^Parameter \#1 \$view of function view expects view\-string\|null, string given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/Cart/CartController.php
-
-		-
-			message: '#^Parameter \#1 \$view of function view expects view\-string\|null, string given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/Checkout/CheckoutController.php
-
-		-
 			message: '#^Class App\\Models\\Attribute uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
 			count: 1

@@ -17,6 +17,8 @@ class CartController extends Controller
     public function index(): View
     {
         $cart = $this->cart->getCurrentCart();
+        // Imaginile produselor din coș (evită interogări lazy, interzise în dezvoltare).
+        $cart->loadMissing('items.variant.product.media');
 
         return view('cart.index', [
             'cart' => $cart,
