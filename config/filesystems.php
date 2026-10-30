@@ -41,7 +41,9 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
+            // URL relativ: imaginile se încarcă de la aceeași origine ca pagina,
+            // oricare ar fi hostul (localhost, 127.0.0.1, domeniu) — fără CORS.
+            'url' => '/storage',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,

@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Observers\AuditObserver;
 use App\Observers\LowStockObserver;
 use App\Policies\ActivityPolicy;
+use Filament\Facades\Filament;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -72,6 +73,12 @@ class AppServiceProvider extends ServiceProvider
         }
 
         ProductVariant::observe(LowStockObserver::class);
+
+        // Panoul de administrare este în română; vitrina își păstrează limba aplicației.
+        // Limba se poate schimba cu `app.admin_locale` (implicit `ro`).
+        Filament::serving(function (): void {
+            app()->setLocale((string) config('app.admin_locale', 'ro'));
+        });
 
         // Larg pentru ca retrimiterile legitime ale providerului să încapă,
         // dar suficient de strâns cât să oprească inundarea endpoint-ului.

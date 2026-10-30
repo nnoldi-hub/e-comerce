@@ -79,11 +79,16 @@ class ProductResource extends Resource
                     ]),
                 Select::make('status')
                     ->label('Status')
-                    ->options(self::STATUSES)
+                    // La creare un produs nu are încă variante, deci poate fi doar ciornă.
+                    ->options(fn (?Product $record): array => $record === null
+                        ? ['draft' => self::STATUSES['draft']]
+                        : self::STATUSES)
                     ->default('draft')
                     ->required()
                     ->native(false)
-                    ->helperText('Un produs devine activ doar după ce are cel puțin o variantă (adaug-o din tab-ul Variante, după salvare).')
+                    ->helperText(fn (?Product $record): string => $record === null
+                        ? 'Produsul se creează ca ciornă. După salvare adaugi variantele (tab-ul Variante) și apoi îl poți activa.'
+                        : 'Un produs devine activ doar după ce are cel puțin o variantă.')
                     ->rules([
                         fn (?Product $record): Closure => function (string $attribute, mixed $value, Closure $fail) use ($record): void {
                             if ($value === 'active' && ($record === null || ! $record->variants()->exists())) {
