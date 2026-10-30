@@ -9,10 +9,16 @@ use App\Http\Controllers\Checkout\CheckoutController;
 use App\Http\Controllers\Checkout\PayOrderController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\RobotsController;
+use App\Http\Controllers\SitemapController;
 use App\Http\Middleware\EnsureActiveCustomer;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
+
+// SEO: generate dinamic (fișierul static public/robots.txt trebuie șters, altfel are prioritate).
+Route::get('/robots.txt', RobotsController::class)->name('robots');
+Route::get('/sitemap.xml', SitemapController::class)->middleware('throttle:30,1')->name('sitemap');
 
 // Fortify redirecționează aici după autentificare (config/fortify.php `home`).
 Route::redirect('/home', '/cont');

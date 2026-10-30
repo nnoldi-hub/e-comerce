@@ -1,4 +1,18 @@
 <x-layouts.app :description="'Descoperă produsele '.config('app.name').'.'">
+    <x-slot:head>
+        <script type="application/ld+json">{!! json_encode([
+            '@context' => 'https://schema.org',
+            '@type' => 'WebSite',
+            'name' => config('app.name'),
+            'url' => url('/'),
+            'potentialAction' => [
+                '@type' => 'SearchAction',
+                'target' => route('catalog.index').'?q={search_term_string}',
+                'query-input' => 'required name=search_term_string',
+            ],
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) !!}</script>
+    </x-slot:head>
+
     <section class="mb-10 rounded-2xl bg-brand-50 px-6 py-12 sm:px-12">
         <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Bun venit la {{ config('app.name') }}</h1>
         <p class="mt-3 max-w-xl text-zinc-600">Produse alese cu grijă, livrare rapidă și plată sigură, cu cardul sau ramburs.</p>

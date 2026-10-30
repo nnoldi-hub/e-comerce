@@ -26,4 +26,15 @@ return [
         'checkout' => (int) env('RATE_LIMIT_CHECKOUT', 20),
     ],
 
+    /*
+    | Content-Security-Policy pentru vitrină (nu și pentru panoul /admin, care
+    | folosește Alpine cu expresii evaluate): `report-only` (implicit; încălcările
+    | se raportează la /webhooks/csp-report, nimic nu se blochează), `enforce`
+    | (blochează) sau `off`. Treci pe `enforce` abia după ce logurile arată zero
+    | încălcări legitime.
+    */
+    'csp' => [
+        'mode' => env('CSP_MODE', 'report-only'),
+    ],
+
 ];
