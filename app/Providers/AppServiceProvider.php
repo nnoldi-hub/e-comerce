@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Domain\Payments\Gateways\StripeGateway;
+use App\Http\Middleware\SecurityHeaders;
 use App\Models\Attribute;
 use App\Models\AttributeValue;
 use App\Models\Brand;
@@ -18,8 +19,10 @@ use App\Observers\LowStockObserver;
 use App\Policies\ActivityPolicy;
 use Filament\Facades\Filament;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Foundation\Http\Kernel as FoundationKernel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
@@ -79,6 +82,14 @@ class AppServiceProvider extends ServiceProvider
         Filament::serving(function (): void {
             app()->setLocale((string) config('app.admin_locale', 'ro'));
         });
+
+        // Headere de securitate pe toate răspunsurile, inclusiv panoul (care nu
+        // trece prin grupul `web`), de aceea middleware global.
+        $kernel = $this->app->make(HttpKernel::class);
+
+        if ($kernel instanceof FoundationKernel) {
+            $kernel->pushMiddleware(SecurityHeaders::class);
+        }
 
         // Larg pentru ca retrimiterile legitime ale providerului să încapă,
         // dar suficient de strâns cât să oprească inundarea endpoint-ului.
