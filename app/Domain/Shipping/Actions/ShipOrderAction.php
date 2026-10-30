@@ -3,6 +3,7 @@
 namespace App\Domain\Shipping\Actions;
 
 use App\Domain\Orders\Actions\TransitionOrderStatusAction;
+use App\Domain\Orders\Exceptions\InvalidOrderTransitionException;
 use App\Domain\Shipping\Events\OrderShipped;
 use App\Domain\Shipping\Exceptions\ShipmentException;
 use App\Enums\OrderStatus;
@@ -28,6 +29,7 @@ class ShipOrderAction
 
     /**
      * @throws ShipmentException
+     * @throws InvalidOrderTransitionException
      */
     public function execute(
         Order $order,
