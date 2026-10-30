@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Account\AccountController;
+use App\Http\Controllers\Account\AddressController;
 use App\Http\Controllers\Account\OrderController as AccountOrderController;
 use App\Http\Controllers\Cart\CartController;
 use App\Http\Controllers\Catalog\CatalogController;
@@ -35,6 +36,13 @@ Route::middleware(['auth', EnsureActiveCustomer::class])->prefix('cont')->name('
     Route::get('/comenzi/{number}', [AccountOrderController::class, 'show'])->where('number', '[A-Za-z0-9\-]+')->name('orders.show');
     Route::get('/profil', [AccountController::class, 'profile'])->name('profile');
     Route::get('/parola', [AccountController::class, 'password'])->name('password');
+    Route::get('/adrese', [AddressController::class, 'index'])->name('addresses.index');
+    Route::get('/adrese/noua', [AddressController::class, 'create'])->name('addresses.create');
+    Route::post('/adrese', [AddressController::class, 'store'])->name('addresses.store');
+    Route::get('/adrese/{address}/editeaza', [AddressController::class, 'edit'])->whereNumber('address')->name('addresses.edit');
+    Route::put('/adrese/{address}', [AddressController::class, 'update'])->whereNumber('address')->name('addresses.update');
+    Route::delete('/adrese/{address}', [AddressController::class, 'destroy'])->whereNumber('address')->name('addresses.destroy');
+    Route::post('/adrese/{address}/implicita', [AddressController::class, 'makeDefault'])->whereNumber('address')->name('addresses.default');
     // Codurile de recuperare și cheia 2FA se afișează doar după reconfirmarea parolei.
     Route::get('/securitate', [AccountController::class, 'security'])->middleware('password.confirm')->name('security');
 });

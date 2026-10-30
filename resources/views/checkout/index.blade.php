@@ -1,5 +1,6 @@
 @php
     $user = auth()->user();
+    $p = $prefill ?? [];
     $payment = old('payment_method', 'card');
     $shipping = (int) old('shipping_method_id', $shippingMethods->first()?->id);
 @endphp
@@ -20,16 +21,34 @@
         <div class="space-y-8 lg:col-span-2">
             <section aria-labelledby="h-contact">
                 <h2 id="h-contact" class="mb-3 text-lg font-semibold">Date de contact și livrare</h2>
+
+                @if ($savedAddresses->isNotEmpty())
+                    <div class="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm">
+                        <p class="mb-2 font-medium">Adresele tale salvate</p>
+                        <ul class="space-y-1">
+                            @foreach ($savedAddresses as $saved)
+                                <li>
+                                    <a href="{{ route('checkout.index', ['adresa' => $saved->id]) }}"
+                                       @if ($selectedAddressId === $saved->id) aria-current="true" @endif
+                                       class="{{ $selectedAddressId === $saved->id ? 'font-semibold text-brand-700' : 'text-brand-600 hover:underline' }}">
+                                        {{ $saved->label ?: trim($saved->first_name.' '.$saved->last_name) }} — {{ $saved->address_line1 }}, {{ $saved->city }}
+                                    </a>
+                                </li>
+                            @endforeach
+                        </ul>
+                        <p class="mt-2 text-xs text-zinc-500">Alegerea unei adrese reîncarcă formularul; coșul rămâne neschimbat.</p>
+                    </div>
+                @endif
                 <div class="grid gap-4 sm:grid-cols-2">
-                    <x-field name="first_name" label="Prenume" :value="$user?->name" required autocomplete="given-name" />
-                    <x-field name="last_name" label="Nume" required autocomplete="family-name" />
+                    <x-field name="first_name" label="Prenume" :value="$p['first_name'] ?? $user?->name" required autocomplete="given-name" />
+                    <x-field name="last_name" label="Nume" :value="$p['last_name'] ?? null" required autocomplete="family-name" />
                     <x-field name="email" type="email" label="Email" :value="$user?->email" required autocomplete="email" />
-                    <x-field name="phone" type="tel" label="Telefon" :value="$user?->phone" required autocomplete="tel" />
-                    <div class="sm:col-span-2"><x-field name="address_line1" label="Adresă" required autocomplete="address-line1" /></div>
-                    <div class="sm:col-span-2"><x-field name="address_line2" label="Detalii adresă (bloc, scară, apartament)" autocomplete="address-line2" /></div>
-                    <x-field name="city" label="Localitate" required autocomplete="address-level2" />
-                    <x-field name="county" label="Județ" autocomplete="address-level1" />
-                    <x-field name="postal_code" label="Cod poștal" required autocomplete="postal-code" />
+                    <x-field name="phone" type="tel" label="Telefon" :value="$p['phone'] ?? $user?->phone" required autocomplete="tel" />
+                    <div class="sm:col-span-2"><x-field name="address_line1" label="Adresă" :value="$p['address_line1'] ?? null" required autocomplete="address-line1" /></div>
+                    <div class="sm:col-span-2"><x-field name="address_line2" label="Detalii adresă (bloc, scară, apartament)" :value="$p['address_line2'] ?? null" autocomplete="address-line2" /></div>
+                    <x-field name="city" label="Localitate" :value="$p['city'] ?? null" required autocomplete="address-level2" />
+                    <x-field name="county" label="Județ" :value="$p['county'] ?? null" autocomplete="address-level1" />
+                    <x-field name="postal_code" label="Cod poștal" :value="$p['postal_code'] ?? null" required autocomplete="postal-code" />
                     <div>
                         <span class="mb-1 block text-sm font-medium">Țara</span>
                         <p class="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm">România</p>
@@ -39,16 +58,25 @@
 
             <section aria-labelledby="h-company">
                 <div>
-                    <input id="is_company" type="checkbox" name="is_company" value="1" class="peer size-4 align-middle" @checked(old('is_company'))>
+                    <input id="is_company" type="checkbox" name="is_company" value="1" class="peer size-4 align-middle" @checked(old('is_company', ! empty($p['company_name'])))>
                     <label for="is_company" id="h-company" class="ml-2 align-middle text-sm font-medium">Comand ca firmă (persoană juridică)</label>
 
                     <div class="mt-3 hidden gap-4 peer-checked:grid sm:grid-cols-3">
-                        <x-field name="company_name" label="Denumire firmă" autocomplete="off" />
-                        <x-field name="cui" label="CUI" hint="Ex. RO1234567" autocomplete="off" />
-                        <x-field name="reg_com" label="Nr. Reg. Com." autocomplete="off" />
+                        <x-field name="company_name" label="Denumire firmă" :value="$p['company_name'] ?? null" autocomplete="off" />
+                        <x-field name="cui" label="CUI" :value="$p['cui'] ?? null" hint="Ex. RO1234567" autocomplete="off" />
+                        <x-field name="reg_com" label="Nr. Reg. Com." :value="$p['reg_com'] ?? null" autocomplete="off" />
                     </div>
                 </div>
             </section>
+
+            @auth
+                <section>
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="checkbox" name="save_address" value="1" class="size-4" @checked(old('save_address'))>
+                        Salvează această adresă în contul meu
+                    </label>
+                </section>
+            @endauth
 
             <section aria-labelledby="h-ship">
                 <h2 id="h-ship" class="mb-3 text-lg font-semibold">Metoda de livrare</h2>

@@ -4,6 +4,7 @@
         'index' => ['Prezentare', route('account.index')],
         'orders' => ['Comenzile mele', route('account.orders.index')],
         'profile' => ['Date personale', route('account.profile')],
+        'addresses' => ['Adrese', route('account.addresses.index')],
         'password' => ['Parolă', route('account.password')],
         'security' => ['Securitate (2FA)', route('account.security')],
     ];

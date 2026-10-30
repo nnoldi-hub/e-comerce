@@ -53,6 +53,7 @@ class CheckoutRequest extends FormRequest
             'customer_note' => ['nullable', 'string', 'max:1000'],
             'idempotency_key' => ['required', 'uuid'],
             'terms' => ['accepted'],
+            'save_address' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -83,6 +84,7 @@ class CheckoutRequest extends FormRequest
             'customer_note' => 'observațiile',
             'idempotency_key' => 'cheia comenzii',
             'terms' => 'acceptarea termenilor',
+            'save_address' => 'salvarea adresei',
         ];
     }
 
