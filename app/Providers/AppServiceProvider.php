@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Domain\Payments\Gateways\StripeGateway;
 use App\Models\Brand;
 use App\Models\Cart;
 use App\Models\Category;
@@ -18,7 +19,11 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        $this->app->bind(StripeGateway::class, fn () => new StripeGateway(
+            (string) config('shop.payments.gateways.stripe.secret', ''),
+            (string) config('shop.payments.gateways.stripe.webhook_secret', ''),
+            (int) config('shop.payments.gateways.stripe.tolerance', 300),
+        ));
     }
 
     public function boot(): void

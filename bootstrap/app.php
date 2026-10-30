@@ -16,6 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin.2fa' => EnsureAdminHasTwoFactor::class,
         ]);
+
+        // Webhook-urile vin de la provider, nu din browser: nu au token CSRF.
+        $middleware->validateCsrfTokens(except: ['webhooks/*']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

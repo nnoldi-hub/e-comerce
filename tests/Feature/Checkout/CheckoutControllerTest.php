@@ -3,6 +3,8 @@
 namespace Tests\Feature\Checkout;
 
 use App\Models\Order;
+use App\Models\Payment;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Tests\Feature\Pricing\PricingTestCase;
 
@@ -116,5 +118,31 @@ class CheckoutControllerTest extends PricingTestCase
             ->assertRedirect(route('checkout.success'));
 
         $this->assertSame(1, Order::query()->count());
+    }
+
+    public function test_card_checkout_redirects_to_the_gateway_when_it_returns_a_url(): void
+    {
+        config([
+            'shop.payments.methods.card' => 'stripe',
+            'shop.payments.gateways.stripe.secret' => 'sk_test_123',
+        ]);
+
+        Http::fake([
+            'api.stripe.com/*' => Http::response([
+                'id' => 'cs_test_redirect',
+                'url' => 'https://checkout.stripe.test/cs_test_redirect',
+            ]),
+        ]);
+
+        $courier = $this->makeCourier();
+        $cart = $this->makeCart([[$this->makeVariant(5000), 1]]);
+
+        $this->withSession(['cart_ulid' => $cart->ulid])
+            ->post(route('checkout.store'), $this->payload($courier->id))
+            ->assertRedirect('https://checkout.stripe.test/cs_test_redirect');
+
+        $payment = Payment::query()->firstOrFail();
+        $this->assertSame('stripe', $payment->provider);
+        $this->assertSame('cs_test_redirect', $payment->provider_reference);
     }
 }

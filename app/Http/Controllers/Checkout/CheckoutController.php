@@ -8,6 +8,8 @@ use App\Domain\Checkout\Exceptions\CheckoutException;
 use App\Domain\Pricing\PriceCalculator;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CheckoutRequest;
+use App\Models\Order;
+use App\Models\Payment;
 use App\Models\ShippingMethod;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -55,6 +57,13 @@ class CheckoutController extends Controller
 
         $request->session()->flash('order_number', $order->number);
 
+        $payment = Payment::query()->where('order_id', $order->id)->latest('id')->first();
+        $redirectUrl = $payment?->payload['redirect_url'] ?? null;
+
+        if (is_string($redirectUrl) && $redirectUrl !== '') {
+            return redirect()->away($redirectUrl);
+        }
+
         return redirect()->route('checkout.success');
     }
 
@@ -66,6 +75,15 @@ class CheckoutController extends Controller
             return redirect()->route('cart.index');
         }
 
-        return view('checkout.success', ['orderNumber' => $number]);
+        $order = Order::query()
+            ->where('number', $number)
+            ->with('items')
+            ->first();
+
+        if ($order === null) {
+            return redirect()->route('cart.index');
+        }
+
+        return view('checkout.success', ['order' => $order]);
     }
 }

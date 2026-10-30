@@ -20,6 +20,7 @@ use App\Models\Coupon;
 use App\Models\CouponUsage;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\OrderStatusHistory;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\StockReservation;
@@ -191,6 +192,7 @@ class PlaceOrderAction
             'email' => $data->email,
             'status' => $data->paymentMethod === 'card' ? OrderStatus::AWAITING_PAYMENT : OrderStatus::PENDING,
             'payment_status' => PaymentStatus::PENDING,
+            'payment_method' => $data->paymentMethod,
             'fulfillment_status' => 'unfulfilled',
             'subtotal' => $totals->subtotal,
             'discount_total' => $totals->discount,
@@ -208,6 +210,14 @@ class PlaceOrderAction
 
         // Număr derivat din id (unic prin construcție, fără condiții de cursă).
         $order->update(['number' => sprintf('%s-%06d', now()->format('Y'), $order->id)]);
+
+        OrderStatusHistory::create([
+            'order_id' => $order->id,
+            'from_status' => null,
+            'to_status' => $order->status,
+            'comment' => 'Comandă plasată',
+            'changed_by' => $data->userId,
+        ]);
 
         $expiresAt = now()->addMinutes((int) config("shop.reservation_minutes.{$data->paymentMethod}", 30));
 

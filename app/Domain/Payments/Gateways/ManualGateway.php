@@ -1,0 +1,41 @@
+<?php
+
+namespace App\Domain\Payments\Gateways;
+
+use App\Domain\Payments\Contracts\PaymentGateway;
+use App\Domain\Payments\DTOs\PaymentInitiation;
+use App\Domain\Payments\DTOs\PaymentNotification;
+use App\Enums\PaymentStatus;
+use App\Models\Order;
+use Illuminate\Http\Request;
+
+/**
+ * Gateway "offline": înregistrează plata ca pending, fără redirect. Este folosit
+ * implicit pentru card în development și poate fi confirmat manual din admin.
+ */
+class ManualGateway implements PaymentGateway
+{
+    public function provider(): string
+    {
+        return 'manual';
+    }
+
+    public function initiate(Order $order): PaymentInitiation
+    {
+        return new PaymentInitiation(
+            provider: $this->provider(),
+            reference: 'MAN-'.$order->number,
+            status: PaymentStatus::PENDING,
+        );
+    }
+
+    public function verifyWebhook(Request $request): bool
+    {
+        return false;
+    }
+
+    public function parseWebhook(Request $request): ?PaymentNotification
+    {
+        return null;
+    }
+}

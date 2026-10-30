@@ -92,6 +92,7 @@ erDiagram
         bigint user_id FK "nullable"
         string status
         string payment_status
+        string payment_method
         bigint grand_total
         json billing_address
         json shipping_address
@@ -114,6 +115,23 @@ erDiagram
         string provider_reference
         string status
         bigint amount
+    }
+    order_status_histories {
+        bigint id PK
+        bigint order_id FK
+        string from_status "nullable"
+        string to_status
+        text comment "nullable"
+        bigint changed_by FK "nullable"
+        timestamp created_at
+    }
+    webhook_events {
+        bigint id PK
+        string provider
+        string event_id "nullable"
+        string type "nullable"
+        json payload "nullable"
+        timestamp processed_at "nullable"
     }
     stock_reservations {
         bigint id PK
@@ -174,6 +192,9 @@ erDiagram
     orders ||--|{ order_items : "linii"
     product_variants |o--o{ order_items : "snapshot"
     orders ||--o{ payments : ""
+    orders ||--o{ order_status_histories : "istoric"
+    users |o--o{ order_status_histories : "schimbat de"
+    webhook_events }o--o| payments : "referință provider"
     product_variants ||--o{ stock_reservations : ""
     carts |o--o{ stock_reservations : ""
     orders |o--o{ stock_reservations : ""
@@ -194,7 +215,7 @@ Aliasuri: `user`, `product`, `product_variant`, `category`, `brand`, `cart`, `or
 |---|---|---|---|
 | 1 | `carts.user_id` nu are index unic. `firstOrCreate` pe `user_id` poate crea două coșuri pentru același utilizator la cereri simultane | De reparat | Migrație: `unique('user_id')` (MySQL permite mai multe NULL, deci coșurile de invitat nu sunt afectate) |
 | 2 | `products.slug` și `users.email` sunt unice, dar tabelele au `deleted_at`. Un rând șters logic blochează refolosirea valorii | De decis | Păstrezi comportamentul (restaurare) sau muți unicitatea pe `(slug, deleted_at)` |
-| 3 | `orders.status`, `payment_status`, `fulfillment_status` sunt `enum` în baza de date, dar `payments.status` este `varchar(32)`. Un status nou cere migrație pe `orders` | Ok / de uniformizat | La Etapa 5, treci coloanele de status pe `varchar` validat de enum-urile PHP |
+| 3 | `orders.status`, `payment_status`, `fulfillment_status` sunt `enum` în baza de date, dar `payments.status` este `varchar(32)`. Un status nou cere migrație pe `orders` | Rezolvat | La Etapa 5 coloanele au fost mutate pe `varchar`, validate de enum-urile PHP |
 | 4 | `order_items` și `payments` nu au `currency` pe linie (`payments` are). `MoneyCast` presupune RON pe `order_items` | Ok cât ai o singură monedă | Adaugă `currency` la `order_items` când introduci a doua monedă |
 | 5 | `product_attribute_values`: `UNIQUE (product_id, attribute_value_id, product_variant_id)` nu împiedică dubluri când `product_variant_id` este NULL (MySQL tratează NULL ca distinct) | Mic | Previi dublurile în cod (`syncWithoutDetaching`) sau separi în două tabele |
 | 6 | `coupon_usages` nu are unic pe `order_id` | Mic | `unique('order_id')`, o comandă folosește cel mult un cupon |
@@ -205,7 +226,7 @@ Aliasuri: `user`, `product`, `product_variant`, `category`, `brand`, `cart`, `or
 
 ## Tabele planificate care nu există încă
 
-`addresses`, `tags` / `taggables`, `reviews`, `order_status_histories`,
+`addresses`, `tags` / `taggables`, `reviews`,
 `order_notes`, `refunds`, `shipments` / `shipment_items`, `invoices`,
-`webhook_events`, `low_stock_alerts`, `settings`, `daily_sales_stats`,
+`low_stock_alerts`, `settings`, `daily_sales_stats`,
 `product_daily_stats`, `suppliers` / `purchase_orders`.
