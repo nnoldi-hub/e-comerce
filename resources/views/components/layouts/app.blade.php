@@ -1,4 +1,4 @@
-@props(['title' => null, 'description' => null, 'robots' => null])
+@props(['title' => null, 'description' => null, 'robots' => null, 'head' => null])
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full">
 <head>
@@ -12,6 +12,7 @@
         <meta name="robots" content="{{ $robots }}">
     @endif
     <link rel="canonical" href="{{ url()->current() }}">
+    {{ $head }}
 
     @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
         @fonts
@@ -27,6 +28,12 @@
 
             <nav class="hidden items-center gap-6 text-sm sm:flex" aria-label="Principal">
                 <a href="{{ url('/') }}" class="hover:text-brand-600">Acasă</a>
+                <a href="{{ route('catalog.index') }}" class="hover:text-brand-600">Produse</a>
+                <form method="GET" action="{{ route('catalog.index') }}" role="search" class="flex">
+                    <label for="q-desktop" class="sr-only">Caută produse</label>
+                    <input id="q-desktop" name="q" type="search" value="{{ request('q') }}" placeholder="Caută…" maxlength="100"
+                           class="w-40 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm">
+                </form>
                 <a href="{{ route('cart.index') }}" class="hover:text-brand-600">Coș</a>
                 @auth
                     <form method="POST" action="{{ url('/logout') }}">
@@ -42,6 +49,7 @@
                 <summary class="cursor-pointer list-none rounded border border-zinc-300 px-3 py-1.5 text-sm">Meniu</summary>
                 <div class="absolute right-0 z-40 mt-2 w-48 rounded-lg border border-zinc-200 bg-white p-2 text-sm shadow-lg">
                     <a href="{{ url('/') }}" class="block rounded px-3 py-2 hover:bg-zinc-50">Acasă</a>
+                    <a href="{{ route('catalog.index') }}" class="block rounded px-3 py-2 hover:bg-zinc-50">Produse</a>
                     <a href="{{ route('cart.index') }}" class="block rounded px-3 py-2 hover:bg-zinc-50">Coș</a>
                     @auth
                         <form method="POST" action="{{ url('/logout') }}">

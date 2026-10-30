@@ -4,26 +4,17 @@
         <p class="mt-3 max-w-xl text-zinc-600">Produse alese cu grijă, livrare rapidă și plată sigură, cu cardul sau ramburs.</p>
     </section>
 
-    <h2 class="mb-4 text-xl font-semibold">Produse noi</h2>
+    <div class="mb-4 flex items-baseline justify-between">
+        <h2 class="text-xl font-semibold">Produse noi</h2>
+        <a href="{{ route('catalog.index') }}" class="text-sm text-brand-600 hover:underline">Vezi toate produsele</a>
+    </div>
 
     @if ($products->isEmpty())
         <p class="text-zinc-500">Momentan nu avem produse publicate. Revino în curând.</p>
     @else
         <ul class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             @foreach ($products as $product)
-                <li class="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-                    <x-product-image :product="$product" class="aspect-square w-full" />
-                    <div class="p-3">
-                        <h3 class="line-clamp-2 text-sm font-medium">{{ $product->name }}</h3>
-                        <p class="mt-1 text-sm text-zinc-600">
-                            @if ($product->min_price !== null)
-                                de la <x-price :amount="$product->min_price" />
-                            @else
-                                Preț la cerere
-                            @endif
-                        </p>
-                    </div>
-                </li>
+                <li><x-product-card :product="$product" /></li>
             @endforeach
         </ul>
     @endif

@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Cart\CartController;
+use App\Http\Controllers\Catalog\CatalogController;
+use App\Http\Controllers\Catalog\ProductController;
 use App\Http\Controllers\Checkout\CheckoutController;
 use App\Http\Controllers\Checkout\PayOrderController;
 use App\Http\Controllers\HealthController;
@@ -12,6 +14,11 @@ Route::get('/', HomeController::class)->name('home');
 // Fortify redirecționează aici după autentificare (config/fortify.php `home`);
 // contul clientului (Etapa 8E) va înlocui redirecționarea.
 Route::redirect('/home', '/');
+
+// Catalog: lista (cu căutare/filtre), categorie după cale materializată, produs după slug.
+Route::get('/produse', [CatalogController::class, 'index'])->name('catalog.index');
+Route::get('/categorie/{path}', [CatalogController::class, 'category'])->where('path', '[a-z0-9\-\/]+')->name('catalog.category');
+Route::get('/produs/{product:slug}', ProductController::class)->name('catalog.product');
 
 // Monitorizare (cu token); `/up` rămâne verificarea simplă a framework-ului.
 Route::get('/health', HealthController::class)->middleware('throttle:30,1')->name('health');
