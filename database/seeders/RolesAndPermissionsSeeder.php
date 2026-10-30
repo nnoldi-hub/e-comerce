@@ -18,6 +18,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'products.view', 'products.create', 'products.update', 'products.delete',
             'inventory.view', 'inventory.adjust', 'inventory.alerts.receive',
             'categories.manage',
+            'brands.manage',
+            'attributes.manage',
+            'coupons.manage',
             'orders.view', 'orders.update-status', 'orders.refund',
             'customers.view', 'customers.update',
             'users.manage',
@@ -38,7 +41,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'access-admin',
             'products.view', 'products.create', 'products.update',
             'inventory.view', 'inventory.adjust', 'inventory.alerts.receive',
-            'categories.manage',
+            'categories.manage', 'brands.manage', 'attributes.manage',
         ]);
 
         $support = Role::findOrCreate('Suport Clienți');

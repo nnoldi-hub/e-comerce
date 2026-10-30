@@ -16,9 +16,12 @@ class AttributeValue extends Model
 
     public function getSlugOptions(): SlugOptions
     {
+        // Unicitatea este per atribut (indexul unic este [attribute_id, slug]):
+        // "M" la Mărime și "M" la altceva nu trebuie să devină "m-1".
         return SlugOptions::create()
             ->generateSlugsFrom('value')
-            ->saveSlugsTo('slug');
+            ->saveSlugsTo('slug')
+            ->extraScope(fn ($builder) => $builder->where('attribute_id', $this->attribute_id));
     }
 
     public function attribute(): BelongsTo

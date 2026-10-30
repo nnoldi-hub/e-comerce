@@ -45,7 +45,9 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         Gate::before(function ($user, $ability) {
-            if ($user->hasRole('Super Admin')) {
+            // Super Admin are acces total, dar nu ocoleste regulile de integritate la
+            // stergere (ce este in uz nu se sterge): acelea traiesc in policy-uri.
+            if ($ability !== 'delete' && $user->hasRole('Super Admin')) {
                 return true;
             }
         });
