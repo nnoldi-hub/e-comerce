@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Str;
 use Spatie\Image\Enums\Fit;
 use Spatie\MediaLibrary\HasMedia;
@@ -73,6 +74,44 @@ class Product extends Model implements HasMedia
                 $product->ulid = (string) Str::ulid();
             }
         });
+
+        // Adresa veche rămâne valabilă: trimite cu 301 la cea nouă (vezi resolveRouteBinding).
+        static::updated(function (Product $product): void {
+            if ($product->wasChanged('slug')) {
+                SlugRedirect::remember(SlugRedirect::PRODUCT, (string) $product->getOriginal('slug'), $product->id);
+                SlugRedirect::forget(SlugRedirect::PRODUCT, $product->slug);
+            }
+        });
+
+        static::created(function (Product $product): void {
+            SlugRedirect::forget(SlugRedirect::PRODUCT, $product->slug);
+        });
+    }
+
+    /**
+     * Pe vitrină (`/produs/{product:slug}`), un slug vechi nu mai dă 404, ci
+     * redirecționează permanent la adresa curentă a produsului (cu parametrii
+     * din query, ex. ?variant=ID). Produsele șterse nu se redirecționează.
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        $product = parent::resolveRouteBinding($value, $field);
+
+        if ($product !== null || ($field ?? $this->getRouteKeyName()) !== 'slug') {
+            return $product;
+        }
+
+        $targetId = SlugRedirect::targetId(SlugRedirect::PRODUCT, (string) $value);
+        $target = $targetId === null ? null : static::query()->find($targetId);
+
+        if ($target instanceof self && $target->slug !== (string) $value) {
+            $url = route('catalog.product', ['product' => $target->slug]);
+            $query = request()->getQueryString();
+
+            throw new HttpResponseException(redirect()->to($query ? $url.'?'.$query : $url, 301));
+        }
+
+        return null;
     }
 
     public function getSlugOptions(): SlugOptions

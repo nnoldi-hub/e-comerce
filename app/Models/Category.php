@@ -69,6 +69,10 @@ class Category extends Model
         $path = $parentPath !== null && $parentPath !== '' ? $parentPath.'/'.$this->slug : $this->slug;
 
         if ($this->path !== $path) {
+            // Calea veche (a categoriei sau a unui descendent) trimite cu 301 la cea nouă.
+            SlugRedirect::remember(SlugRedirect::CATEGORY, $this->path, $this->id);
+            SlugRedirect::forget(SlugRedirect::CATEGORY, $path);
+
             static::query()->whereKey($this->id)->update(['path' => $path]);
             $this->path = $path;
             $this->syncOriginalAttribute('path');

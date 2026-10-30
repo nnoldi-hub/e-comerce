@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\SlugRedirect;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -28,11 +30,31 @@ class CatalogController extends Controller
         return $this->render($request, null);
     }
 
-    public function category(Request $request, string $path): View
+    public function category(Request $request, string $path): View|RedirectResponse
     {
-        $category = Category::query()->active()->where('path', $path)->firstOrFail();
+        $category = Category::query()->active()->where('path', $path)->first();
+
+        if ($category === null) {
+            return $this->movedCategory($request, $path) ?? abort(404);
+        }
 
         return $this->render($request, $category);
+    }
+
+    /** O cale veche de categorie trimite permanent la calea curentă (cu query-ul păstrat). */
+    private function movedCategory(Request $request, string $path): ?RedirectResponse
+    {
+        $targetId = SlugRedirect::targetId(SlugRedirect::CATEGORY, $path);
+        $target = $targetId === null ? null : Category::query()->active()->find($targetId);
+
+        if ($target === null || $target->path === null || $target->path === $path) {
+            return null;
+        }
+
+        $url = route('catalog.category', ['path' => $target->path]);
+        $query = $request->getQueryString();
+
+        return redirect()->to($query ? $url.'?'.$query : $url, 301);
     }
 
     private function render(Request $request, ?Category $category): View

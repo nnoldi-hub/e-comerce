@@ -58,6 +58,16 @@ class ProductResource extends Resource
         return $schema->components([
             Section::make('General')->schema([
                 TextInput::make('name')->label('Nume')->required()->maxLength(255),
+                TextInput::make('slug')
+                    ->label('Adresă (slug)')
+                    ->prefix('/produs/')
+                    ->maxLength(190)
+                    ->regex('/^[a-z0-9]+(?:-[a-z0-9]+)*$/')
+                    ->unique(ignoreRecord: true)
+                    ->required(fn (?Product $record): bool => $record !== null)
+                    ->helperText(fn (?Product $record): string => $record === null
+                        ? 'Gol: se generează din nume. Doar litere mici, cifre și cratime.'
+                        : 'La schimbare, adresa veche redirecționează automat (301) la cea nouă.'),
                 Select::make('brand_id')
                     ->label('Brand')
                     ->relationship('brand', 'name')

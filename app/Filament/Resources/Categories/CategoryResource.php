@@ -44,6 +44,15 @@ class CategoryResource extends Resource
         return $schema->components([
             Section::make('General')->schema([
                 TextInput::make('name')->label('Nume')->required()->maxLength(255),
+                TextInput::make('slug')
+                    ->label('Adresă (slug)')
+                    ->maxLength(190)
+                    ->regex('/^[a-z0-9]+(?:-[a-z0-9]+)*$/')
+                    ->unique(ignoreRecord: true)
+                    ->required(fn (?Category $record): bool => $record !== null)
+                    ->helperText(fn (?Category $record): string => $record === null
+                        ? 'Gol: se generează din nume. Doar litere mici, cifre și cratime.'
+                        : 'La schimbare, adresele vechi (și ale subcategoriilor) redirecționează automat (301).'),
                 Select::make('parent_id')
                     ->label('Categorie părinte')
                     ->options(fn (?Category $record): array => static::parentOptions($record))
