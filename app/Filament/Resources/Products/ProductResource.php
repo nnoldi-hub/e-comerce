@@ -13,11 +13,13 @@ use Closure;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Filament\Tables\Columns\SpatieMediaLibraryImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
@@ -31,6 +33,11 @@ class ProductResource extends Resource
     public const TYPES = ['simple' => 'Simplu', 'variable' => 'Cu variante'];
 
     public const STATUSES = ['draft' => 'Ciornă', 'active' => 'Activ', 'archived' => 'Arhivat'];
+
+    /** Dimensiunea maximă a unei imagini, în KB. */
+    public const IMAGE_MAX_KB = 5120;
+
+    public const GALLERY_MAX_FILES = 10;
 
     protected static ?string $model = Product::class;
 
@@ -93,6 +100,27 @@ class ProductResource extends Resource
                 Textarea::make('description')->label('Descriere')->rows(8)
                     ->helperText('Text simplu (nu HTML).'),
             ]),
+            Section::make('Imagini')->schema([
+                SpatieMediaLibraryFileUpload::make('thumbnail')
+                    ->label('Imagine principală')
+                    ->collection('thumbnail')
+                    ->conversion('thumb')
+                    ->image()
+                    ->acceptedFileTypes(Product::IMAGE_MIME_TYPES)
+                    ->maxSize(self::IMAGE_MAX_KB)
+                    ->helperText('JPEG, PNG sau WebP, cel mult 5 MB. Se afișează în liste și pe cardul produsului.'),
+                SpatieMediaLibraryFileUpload::make('gallery')
+                    ->label('Galerie')
+                    ->collection('gallery')
+                    ->conversion('thumb')
+                    ->multiple()
+                    ->reorderable()
+                    ->image()
+                    ->acceptedFileTypes(Product::IMAGE_MIME_TYPES)
+                    ->maxSize(self::IMAGE_MAX_KB)
+                    ->maxFiles(self::GALLERY_MAX_FILES)
+                    ->helperText('Cel mult '.self::GALLERY_MAX_FILES.' imagini; ordinea se schimbă prin tragere.'),
+            ])->columns(2),
             Section::make('Organizare')->schema([
                 Select::make('categories')
                     ->label('Categorii')
@@ -111,8 +139,13 @@ class ProductResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with('brand')->withCount('variants'))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['brand', 'media'])->withCount('variants'))
             ->columns([
+                SpatieMediaLibraryImageColumn::make('thumbnail')
+                    ->label('')
+                    ->collection('thumbnail')
+                    ->conversion('thumb')
+                    ->square(),
                 TextColumn::make('name')->label('Nume')->searchable()->sortable()
                     ->description(fn (Product $record): ?string => data_get($record->brand, 'name')),
                 TextColumn::make('status')->label('Status')->badge()
