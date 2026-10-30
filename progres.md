@@ -97,3 +97,12 @@ Ultima actualizare: 2026-10-29
 - 7F: smoke tests card și COD de la checkout la rambursare
 - 355 teste, 1274 aserțiuni
 - Rămas: Sentry (opțional), CSP pentru storefront (Etapa 8)
+
+## Etapa 8 — Vitrina (2026-10-30)
+- 8A: layout Blade + Tailwind 4, componente (preț, imagine, câmp, buton), home, view-uri auth Fortify
+- 8B: catalog (/produse, /categorie/{cale}, /produs/{slug}), căutare, filtre, sortare, variante, JSON-LD Product
+- 8C/8D: coș și checkout (formular cu firmă/CUI, sumar din CartTotals), pagina de succes cu reluarea plății
+- 8E: contul clientului (/cont): comenzi, profil, parolă, 2FA; filtrare strictă după user_id, fără note interne în istoric
+- 8F: CSP report-only (CSP_MODE), robots.txt și sitemap.xml dinamice, pagini de eroare, ADR 0018
+- 411 teste, 1486 aserțiuni
+- Rămas: carnet de adrese, asocierea comenzilor de oaspete cu contul, Sentry (opțional), slug editor cu redirecturi (slug_redirects)
