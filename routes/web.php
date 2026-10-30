@@ -8,6 +8,7 @@ use App\Http\Controllers\Catalog\CatalogController;
 use App\Http\Controllers\Catalog\ProductController;
 use App\Http\Controllers\Checkout\CheckoutController;
 use App\Http\Controllers\Checkout\PayOrderController;
+use App\Http\Controllers\ContentPageController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\RobotsController;
@@ -28,6 +29,9 @@ Route::redirect('/home', '/cont');
 Route::get('/produse', [CatalogController::class, 'index'])->name('catalog.index');
 Route::get('/categorie/{path}', [CatalogController::class, 'category'])->where('path', '[a-z0-9\-\/]+')->name('catalog.category');
 Route::get('/produs/{product:slug}', ProductController::class)->name('catalog.product');
+
+// Pagini de conținut (termeni, confidențialitate, livrare și retur…), administrate din panou.
+Route::get('/pagina/{slug}', ContentPageController::class)->where('slug', '[a-z0-9]+(?:-[a-z0-9]+)*')->name('pages.show');
 
 // Contul clientului. Doar clienți activi; personalul folosește /admin.
 Route::middleware(['auth', EnsureActiveCustomer::class])->prefix('cont')->name('account.')->group(function () {

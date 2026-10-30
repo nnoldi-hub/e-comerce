@@ -73,6 +73,16 @@
 
     <footer class="border-t border-zinc-200 bg-zinc-50">
         <div class="mx-auto max-w-6xl px-4 py-6 text-sm text-zinc-500">
+            @php($footerPages = \App\Models\ContentPage::footerLinks())
+            @if ($footerPages !== [])
+                <nav aria-label="Informații" class="mb-3">
+                    <ul class="flex flex-wrap gap-x-5 gap-y-1">
+                        @foreach ($footerPages as $footerPage)
+                            <li><a href="{{ route('pages.show', $footerPage['slug']) }}" class="hover:text-brand-600 hover:underline">{{ $footerPage['title'] }}</a></li>
+                        @endforeach
+                    </ul>
+                </nav>
+            @endif
             © {{ date('Y') }} {{ config('app.name') }}. Toate drepturile rezervate.
         </div>
     </footer>

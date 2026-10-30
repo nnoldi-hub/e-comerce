@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use App\Models\ContentPage;
 use App\Models\Product;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
@@ -31,6 +32,14 @@ class SitemapController extends Controller
                 $urls[] = [
                     'loc' => route('catalog.category', ['path' => $category->path]),
                     'lastmod' => $category->updated_at?->toAtomString(),
+                ];
+            });
+
+        ContentPage::query()->published()->select(['id', 'slug', 'updated_at'])->orderBy('id')
+            ->each(function (ContentPage $page) use (&$urls): void {
+                $urls[] = [
+                    'loc' => route('pages.show', $page->slug),
+                    'lastmod' => $page->updated_at?->toAtomString(),
                 ];
             });
 

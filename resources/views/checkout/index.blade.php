@@ -148,7 +148,16 @@
 
                 <label class="flex items-start gap-2 text-sm">
                     <input type="checkbox" name="terms" value="1" class="mt-0.5 size-4" @checked(old('terms'))>
-                    <span>Sunt de acord cu termenii și condițiile și cu politica de confidențialitate.</span>
+                    @php
+                        $termsUrl = \App\Models\ContentPage::urlFor(\App\Models\ContentPage::TERMS);
+                        $privacyUrl = \App\Models\ContentPage::urlFor(\App\Models\ContentPage::PRIVACY);
+                    @endphp
+                    <span>
+                        Sunt de acord cu
+                        @if ($termsUrl)<a href="{{ $termsUrl }}" target="_blank" rel="noopener" class="text-brand-600 underline">termenii și condițiile</a>@else termenii și condițiile @endif
+                        și cu
+                        @if ($privacyUrl)<a href="{{ $privacyUrl }}" target="_blank" rel="noopener" class="text-brand-600 underline">politica de confidențialitate</a>@else politica de confidențialitate @endif.
+                    </span>
                 </label>
                 @error('terms')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
 
