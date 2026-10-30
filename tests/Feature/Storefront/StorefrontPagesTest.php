@@ -99,6 +99,6 @@ class StorefrontPagesTest extends PricingTestCase
 
     public function test_the_fortify_home_redirect_goes_to_the_storefront(): void
     {
-        $this->get('/home')->assertRedirect('/');
+        $this->get('/home')->assertRedirect('/cont');
     }
 }

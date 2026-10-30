@@ -36,6 +36,7 @@
                 </form>
                 <a href="{{ route('cart.index') }}" class="hover:text-brand-600">Coș</a>
                 @auth
+                    <a href="{{ route('account.index') }}" class="hover:text-brand-600">Contul meu</a>
                     <form method="POST" action="{{ url('/logout') }}">
                         @csrf
                         <button type="submit" class="hover:text-brand-600">Ieși din cont</button>
@@ -52,6 +53,7 @@
                     <a href="{{ route('catalog.index') }}" class="block rounded px-3 py-2 hover:bg-zinc-50">Produse</a>
                     <a href="{{ route('cart.index') }}" class="block rounded px-3 py-2 hover:bg-zinc-50">Coș</a>
                     @auth
+                        <a href="{{ route('account.index') }}" class="block rounded px-3 py-2 hover:bg-zinc-50">Contul meu</a>
                         <form method="POST" action="{{ url('/logout') }}">
                             @csrf
                             <button type="submit" class="block w-full rounded px-3 py-2 text-left hover:bg-zinc-50">Ieși din cont</button>

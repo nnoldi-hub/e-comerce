@@ -30,15 +30,21 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
                 'max:255',
                 Rule::unique('users')->ignore($user->id),
             ],
+
+            // Același format ca în checkout.
+            'phone' => ['nullable', 'string', 'regex:/^[0-9+\s().-]{7,30}$/'],
         ])->validateWithBag('updateProfileInformation');
+
+        $phone = trim((string) ($input['phone'] ?? ''));
 
         if ($input['email'] !== $user->email &&
             $user instanceof MustVerifyEmail) {
-            $this->updateVerifiedUser($user, $input);
+            $this->updateVerifiedUser($user, $input, $phone);
         } else {
             $user->forceFill([
                 'name' => $input['name'],
                 'email' => $input['email'],
+                'phone' => $phone !== '' ? $phone : null,
             ])->save();
         }
     }
@@ -48,11 +54,12 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
      *
      * @param  array<string, string>  $input
      */
-    protected function updateVerifiedUser(User $user, array $input): void
+    protected function updateVerifiedUser(User $user, array $input, string $phone): void
     {
         $user->forceFill([
             'name' => $input['name'],
             'email' => $input['email'],
+            'phone' => $phone !== '' ? $phone : null,
             'email_verified_at' => null,
         ])->save();
 
