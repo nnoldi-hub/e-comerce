@@ -1,0 +1,17 @@
+# Alternativa la Supervisor: /etc/systemd/system/e-comerce-worker.service
+# sudo systemctl daemon-reload && sudo systemctl enable --now e-comerce-worker
+[Unit]
+Description=E-comerce queue worker
+After=network.target mysql.service
+
+[Service]
+User=www-data
+Group=www-data
+Restart=always
+RestartSec=5
+WorkingDirectory=/var/www/e-comerce/current
+ExecStart=/usr/bin/php artisan queue:work --sleep=3 --tries=3 --backoff=10 --max-time=3600
+TimeoutStopSec=3600
+
+[Install]
+WantedBy=multi-user.target

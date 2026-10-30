@@ -1,0 +1,6 @@
+# /etc/cron.d/e-comerce  (proprietar root, mod 644)
+# Planificatorul Laravel (include bataia de inima, alertele de stoc, curatarea etc.)
+* * * * * www-data cd /var/www/e-comerce/current && php artisan schedule:run >> /dev/null 2>&1
+
+# Copie de siguranta a bazei de date, zilnic la 03:10
+10 3 * * * www-data /var/www/e-comerce/current/scripts/backup-db.sh >> /var/log/e-comerce-backup.log 2>&1

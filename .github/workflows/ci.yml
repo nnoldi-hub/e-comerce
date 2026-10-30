@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   quality:
-    name: Pint + Larastan
+    name: Pint + Larastan + audit
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -27,7 +27,8 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          # Aceeași versiune ca în producție (composer.json cere ^8.3).
+          php-version: '8.3'
           extensions: mbstring, intl, pdo_mysql, bcmath, gd, exif
           coverage: none
           tools: composer:v2
@@ -48,7 +49,12 @@ jobs:
       - name: Larastan (analiză statică)
         run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
 
-      - name: Composer audit (informativ)
+      # Dependențele de producție: vulnerabilitățile blochează CI.
+      - name: Composer audit (producție)
+        run: composer audit --locked --no-dev --no-interaction
+
+      # Tot arborele (și cel de dezvoltare): doar informativ.
+      - name: Composer audit (complet, informativ)
         continue-on-error: true
         run: composer audit --locked --no-interaction
 
@@ -87,7 +93,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: '8.3'
           extensions: mbstring, intl, pdo_mysql, bcmath, gd, exif
           coverage: none
           tools: composer:v2
@@ -118,3 +124,9 @@ jobs:
       - name: Tests
         # Fără --parallel: testul de concurență folosește aceeași bază MySQL.
         run: php artisan test
+
+      # Ca în producție: configurația, rutele și view-urile trebuie să se poată pune în cache.
+      - name: Smoke de producție (optimize)
+        run: |
+          php artisan optimize
+          php artisan optimize:clear

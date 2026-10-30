@@ -1,0 +1,12 @@
+# /etc/logrotate.d/e-comerce
+# Laravel (LOG_STACK=daily) isi roteste singur fisierele (14 zile implicit);
+# aici sunt doar logurile scrise de Supervisor si de scriptul de backup.
+/var/log/e-comerce-worker.log /var/log/e-comerce-backup.log {
+    weekly
+    rotate 8
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}
