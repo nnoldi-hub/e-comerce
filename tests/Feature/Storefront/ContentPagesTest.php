@@ -78,7 +78,8 @@ class ContentPagesTest extends AdminTestCase
         $this->assertStringContainsString('/pagina/livrare', $html);
         $this->assertStringNotContainsString('/pagina/ciorna', $html);
         $this->assertStringNotContainsString('/pagina/ascunsa', $html);
-        $this->assertLessThan(strpos($html, '/pagina/contact'), strpos($html, '/pagina/livrare'));
+        $footer = substr($html, (int) strpos($html, '<footer'));
+        $this->assertLessThan(strpos($footer, '/pagina/contact'), strpos($footer, '/pagina/livrare'));
     }
 
     public function test_saving_a_page_refreshes_the_footer_immediately(): void

@@ -7,15 +7,158 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 
-    /* Culoarea brandului: se schimbă aici și se propagă în toată vitrina. */
+    /*
+     * Brandul NK-Shop. Se schimbă aici și se propagă în toată vitrina
+     * (butoane, linkuri, logo, hero, footer). Scara este albastru modern.
+     */
     --color-brand-50: oklch(97% 0.014 254.6);
     --color-brand-100: oklch(93.2% 0.032 255.6);
+    --color-brand-200: oklch(88.2% 0.059 254.1);
     --color-brand-500: oklch(62.3% 0.214 259.8);
     --color-brand-600: oklch(54.6% 0.245 262.9);
     --color-brand-700: oklch(48.8% 0.243 264.4);
+    --color-brand-800: oklch(42.4% 0.199 265.6);
+    --color-brand-900: oklch(37.9% 0.146 265.5);
+    --color-brand-950: oklch(28.2% 0.091 267.9);
+
+    /*
+     * Accentul NK-Shop: portocaliu doar pentru acțiunile care aduc bani
+     * („Adaugă în coș”, „Finalizează comanda”). Nuanța de bază este 700, nu 500,
+     * ca textul alb de pe buton să aibă contrast suficient (WCAG AA).
+     */
+    --color-accent-50: oklch(98% 0.016 73.7);
+    --color-accent-100: oklch(95.4% 0.038 75.2);
+    --color-accent-500: oklch(70.5% 0.213 47.6);
+    --color-accent-600: oklch(64.6% 0.222 41.1);
+    --color-accent-700: oklch(55.3% 0.195 38.4);
+    --color-accent-800: oklch(47% 0.157 37.3);
+    --color-accent-900: oklch(40.8% 0.123 38.2);
+}
+
+/* Containerul paginii: același pe header, conținut și footer. */
+@utility shell {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 80rem;
+    padding-inline: 1rem;
+
+    @media (min-width: 40rem) {
+        padding-inline: 1.5rem;
+    }
+
+    @media (min-width: 64rem) {
+        padding-inline: 2rem;
+    }
+}
+
+/* Liste care derulează orizontal fără bara de derulare (meniul de categorii, galeria). */
+@utility no-scrollbar {
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
 }
 
 @layer base {
-    html { scroll-behavior: smooth; }
-    :focus-visible { outline: 2px solid var(--color-brand-600); outline-offset: 2px; }
+    html {
+        scroll-behavior: smooth;
+        -webkit-text-size-adjust: 100%;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        html {
+            scroll-behavior: auto;
+        }
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--color-brand-600);
+        outline-offset: 2px;
+    }
+}
+
+/*
+ * Pe telefon, câmpurile au 16px: sub această dimensiune iOS face zoom la focus.
+ * Regula este în afara straturilor ca să câștige față de utilitarele `text-sm`.
+ */
+@media (max-width: 40rem) {
+    input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+    select,
+    textarea {
+        font-size: 16px;
+    }
+}
+
+/*
+ * Glisor de preț cu două capete: două <input type="range"> suprapuse. Cursorul
+ * își recapătă evenimentele doar pe buton (pointer-events), altfel unul l-ar
+ * acoperi pe celălalt. `--lo` / `--hi` (procente) le setează catalog-filters.js.
+ */
+.range-dual {
+    position: relative;
+    height: 1.75rem;
+}
+
+.range-dual .range-track {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 4px;
+    transform: translateY(-50%);
+    border-radius: 9999px;
+    background: linear-gradient(
+        to right,
+        var(--color-zinc-200) 0,
+        var(--color-zinc-200) var(--lo, 0%),
+        var(--color-brand-600) var(--lo, 0%),
+        var(--color-brand-600) var(--hi, 100%),
+        var(--color-zinc-200) var(--hi, 100%),
+        var(--color-zinc-200) 100%
+    );
+}
+
+.range-dual input[type='range'] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    background: transparent;
+    appearance: none;
+    pointer-events: none;
+}
+
+.range-dual input[type='range']::-webkit-slider-thumb {
+    appearance: none;
+    pointer-events: auto;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 9999px;
+    border: 2px solid var(--color-brand-600);
+    background: #fff;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+    cursor: grab;
+}
+
+.range-dual input[type='range']::-moz-range-thumb {
+    pointer-events: auto;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 9999px;
+    border: 2px solid var(--color-brand-600);
+    background: #fff;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+    cursor: grab;
+}
+
+.range-dual input[type='range']:focus-visible::-webkit-slider-thumb {
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: 2px;
+}
+
+.range-dual input[type='range']:focus-visible::-moz-range-thumb {
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: 2px;
 }

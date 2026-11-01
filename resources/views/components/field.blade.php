@@ -8,7 +8,7 @@
            @if ($required) required @endif
            @if ($autocomplete) autocomplete="{{ $autocomplete }}" @endif
            @if ($errors->has($name)) aria-invalid="true" aria-describedby="{{ $name }}-error" @endif
-           {{ $attributes->class(['w-full rounded-lg border px-3 py-2 text-sm', $errors->has($name) ? 'border-red-500' : 'border-zinc-300']) }}>
+           {{ $attributes->class(['w-full rounded-lg border bg-white px-3 py-2 text-sm shadow-sm transition placeholder:text-zinc-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30', $errors->has($name) ? 'border-red-500' : 'border-zinc-300']) }}>
     @if ($hint)<p class="mt-1 text-xs text-zinc-500">{{ $hint }}</p>@endif
     @error($name)<p id="{{ $name }}-error" class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
 </div>

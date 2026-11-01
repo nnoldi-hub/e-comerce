@@ -11,7 +11,7 @@ class HomeController extends Controller
     {
         $products = Product::query()
             ->active()
-            ->with('media')
+            ->with(['media', 'variants'])
             ->orderByDesc('published_at')
             ->limit(8)
             ->get();
