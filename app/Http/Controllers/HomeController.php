@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Support\Bestsellers;
 use Illuminate\View\View;
 
 class HomeController extends Controller
@@ -16,6 +17,14 @@ class HomeController extends Controller
             ->limit(8)
             ->get();
 
-        return view('home.index', ['products' => $products]);
+        $ids = app(Bestsellers::class)->ids();
+
+        $bestsellers = $ids === []
+            ? collect()
+            : Product::query()->active()->whereIn('id', $ids)->with(['media', 'variants'])->get()
+                ->sortBy(fn (Product $product): int => (int) array_search($product->id, $ids, true))
+                ->values();
+
+        return view('home.index', ['products' => $products, 'bestsellers' => $bestsellers]);
     }
 }

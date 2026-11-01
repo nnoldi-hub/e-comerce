@@ -23,6 +23,9 @@ final class ProductCardData
         public readonly bool $lowStock,
         public readonly int $discountPercent,
         public readonly ?int $compareAt,
+        public readonly float $rating = 0.0,
+        public readonly int $reviews = 0,
+        public readonly bool $bestseller = false,
     ) {}
 
     public static function from(Product $product): self
@@ -62,6 +65,9 @@ final class ProductCardData
             compareAt: $single !== null && $single->compare_at_price !== null && $single->compare_at_price > $single->price
                 ? $single->compare_at_price
                 : null,
+            rating: (float) data_get($product, 'rating_avg', 0),
+            reviews: (int) data_get($product, 'reviews_count', 0),
+            bestseller: $product->exists && app(Bestsellers::class)->contains((int) $product->id),
         );
     }
 

@@ -3,6 +3,7 @@
     $links = [
         'index' => ['Prezentare', route('account.index')],
         'orders' => ['Comenzile mele', route('account.orders.index')],
+        'wishlist' => ['Favorite', route('account.wishlist.index')],
         'profile' => ['Date personale', route('account.profile')],
         'addresses' => ['Adrese', route('account.addresses.index')],
         'password' => ['Parolă', route('account.password')],

@@ -59,7 +59,16 @@
             @if ($product->brand)
                 <p class="text-sm font-medium uppercase tracking-wide text-brand-700">{{ $product->brand->name }}</p>
             @endif
-            <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{{ $product->name }}</h1>
+            <div class="mt-1 flex items-start justify-between gap-3">
+                <h1 class="text-2xl font-bold tracking-tight sm:text-3xl">{{ $product->name }}</h1>
+                <x-heart-button :product="$product" :wished="$wishlisted" class="shrink-0" />
+            </div>
+
+            @if ((int) data_get($product, 'reviews_count', 0) > 0)
+                <a href="#recenzii" class="mt-2 inline-flex hover:underline">
+                    <x-rating-stars :rating="(float) data_get($product, 'rating_avg', 0)" :count="(int) data_get($product, 'reviews_count', 0)" />
+                </a>
+            @endif
 
             @if ($variant)
                 <div class="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -125,4 +134,6 @@
             @endif
         </div>
     </div>
+
+    @include('catalog.partials.reviews', ['product' => $product, 'reviews' => $reviews, 'distribution' => $distribution, 'myReview' => $myReview])
 </x-layouts.app>

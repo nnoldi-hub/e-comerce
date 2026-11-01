@@ -3,9 +3,11 @@
 use App\Http\Controllers\Account\AccountController;
 use App\Http\Controllers\Account\AddressController;
 use App\Http\Controllers\Account\OrderController as AccountOrderController;
+use App\Http\Controllers\Account\WishlistController;
 use App\Http\Controllers\Cart\CartController;
 use App\Http\Controllers\Catalog\CatalogController;
 use App\Http\Controllers\Catalog\ProductController;
+use App\Http\Controllers\Catalog\ReviewController;
 use App\Http\Controllers\Catalog\SearchSuggestController;
 use App\Http\Controllers\Checkout\CheckoutController;
 use App\Http\Controllers\Checkout\PayOrderController;
@@ -34,6 +36,11 @@ Route::get('/produs/{product:slug}', ProductController::class)->name('catalog.pr
 // Sugestii pentru căutarea din header: JSON, cu limită de cereri.
 Route::get('/cauta/sugestii', SearchSuggestController::class)->middleware('throttle:60,1')->name('search.suggest');
 
+// Recenzii: doar clienți autentificați; moderate în admin înainte să apară.
+Route::post('/produs/{product:slug}/recenzii', [ReviewController::class, 'store'])
+    ->middleware(['auth', EnsureActiveCustomer::class, 'throttle:5,1'])
+    ->name('reviews.store');
+
 // Pagini de conținut (termeni, confidențialitate, livrare și retur…), administrate din panou.
 Route::get('/pagina/{slug}', ContentPageController::class)->where('slug', '[a-z0-9]+(?:-[a-z0-9]+)*')->name('pages.show');
 
@@ -42,6 +49,8 @@ Route::middleware(['auth', EnsureActiveCustomer::class])->prefix('cont')->name('
     Route::get('/', [AccountController::class, 'index'])->name('index');
     Route::get('/comenzi', [AccountOrderController::class, 'index'])->name('orders.index');
     Route::get('/comenzi/{number}', [AccountOrderController::class, 'show'])->where('number', '[A-Za-z0-9\-]+')->name('orders.show');
+    Route::get('/favorite', [WishlistController::class, 'index'])->name('wishlist.index');
+    Route::post('/favorite/{product:slug}', [WishlistController::class, 'toggle'])->middleware('throttle:60,1')->name('wishlist.toggle');
     Route::get('/profil', [AccountController::class, 'profile'])->name('profile');
     Route::get('/parola', [AccountController::class, 'password'])->name('password');
     Route::get('/adrese', [AddressController::class, 'index'])->name('addresses.index');

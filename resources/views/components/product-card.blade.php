@@ -12,10 +12,17 @@
         <x-product-image :product="$product" fit="contain"
                          class="aspect-square w-full p-3 transition duration-300 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100" />
 
-        @if ($card->discountPercent > 0 || $card->isNew || $card->lowStock || $card->soldOut)
+        @if ($product->exists)
+            <x-heart-button :product="$product" :wished="app(\App\Support\Wishlist::class)->has($product->id)" class="absolute right-2 top-2" />
+        @endif
+
+        @if ($card->discountPercent > 0 || $card->isNew || $card->lowStock || $card->soldOut || $card->bestseller)
             <ul class="pointer-events-none absolute left-2 top-2 flex flex-col items-start gap-1 text-xs font-bold" aria-label="Etichete produs">
                 @if ($card->discountPercent > 0)
                     <li class="rounded-md bg-red-600 px-2 py-0.5 text-white">−{{ $card->discountPercent }}%</li>
+                @endif
+                @if ($card->bestseller)
+                    <li class="rounded-md bg-accent-600 px-2 py-0.5 text-white">Bestseller</li>
                 @endif
                 @if ($card->isNew)
                     <li class="rounded-md bg-brand-600 px-2 py-0.5 text-white">Nou</li>
@@ -33,6 +40,10 @@
         <h3 class="line-clamp-2 min-h-10 text-sm font-medium leading-snug">
             <a href="{{ $productUrl }}" class="after:absolute after:inset-0 hover:text-brand-700">{{ $product->name }}</a>
         </h3>
+
+        @if ($card->reviews > 0)
+            <x-rating-stars :rating="$card->rating" :count="$card->reviews" class="mt-1.5" />
+        @endif
 
         <p class="mt-2 flex flex-wrap items-baseline gap-x-2 text-sm">
             @if ($product->min_price > 0)

@@ -103,6 +103,21 @@
         </section>
     @endif
 
+    {{-- Cele mai vândute --}}
+    @if ($bestsellers->isNotEmpty())
+        <section class="shell pb-10 sm:pb-12" aria-labelledby="h-bestseller">
+            <div class="mb-5 flex items-baseline justify-between">
+                <h2 id="h-bestseller" class="text-2xl font-bold tracking-tight">Cele mai vândute</h2>
+                <a href="{{ route('catalog.index') }}" class="text-sm font-medium text-brand-600 hover:underline">Vezi toate produsele</a>
+            </div>
+            <ul class="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
+                @foreach ($bestsellers->take(4) as $bestseller)
+                    <li><x-product-card :product="$bestseller" /></li>
+                @endforeach
+            </ul>
+        </section>
+    @endif
+
     {{-- Produse noi --}}
     <section class="shell pb-12 sm:pb-16" aria-labelledby="h-noi">
         <div class="mb-5 flex items-baseline justify-between">
