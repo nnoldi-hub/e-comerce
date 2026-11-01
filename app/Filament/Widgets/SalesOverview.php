@@ -41,9 +41,20 @@ class SalesOverview extends StatsOverviewWidget
 
         $awaiting = $report->awaitingFulfilment();
 
+        // Tendința față de ieri se adaugă DUPĂ textul existent; fără comenzi ieri nu există bază de comparație.
+        $trend = '';
+        $trendColor = 'gray';
+
+        if ($yesterday['orders'] > 0) {
+            $pct = (int) round(($today['orders'] - $yesterday['orders']) / $yesterday['orders'] * 100);
+            $trend = ' · '.($pct > 0 ? '+' : '').$pct.'% față de ieri';
+            $trendColor = $pct >= 0 ? 'success' : 'danger';
+        }
+
         return [
             Stat::make('Comenzi azi', (string) $today['orders'])
-                ->description('ieri: '.$yesterday['orders'].' · '.OrderResource::money($today['gross']).' azi'),
+                ->description('ieri: '.$yesterday['orders'].' · '.OrderResource::money($today['gross']).' azi'.$trend)
+                ->color($trendColor),
             Stat::make('Vânzări, 30 de zile', OrderResource::money($month['gross']))
                 ->description($month['orders'].' comenzi · medie '.OrderResource::money($month['average']))
                 ->chart($series)

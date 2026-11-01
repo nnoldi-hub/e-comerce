@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Orders;
 
+use App\Domain\Reporting\SalesReport;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\RefundStatus;
@@ -27,6 +28,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use UnitEnum;
 
 /**
@@ -65,6 +67,37 @@ class OrderResource extends Resource
     protected static ?string $pluralModelLabel = 'comenzi';
 
     protected static ?string $recordTitleAttribute = 'number';
+
+    public static function getNavigationBadge(): ?string
+    {
+        $awaiting = app(SalesReport::class)->awaitingFulfilment();
+
+        return $awaiting > 0 ? (string) $awaiting : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Comenzi care așteaptă expedierea';
+    }
+
+    /** @return list<string> */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['number', 'email'];
+    }
+
+    /** @return array<string, string> */
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        return $record instanceof Order
+            ? ['Email' => (string) $record->email, 'Total' => self::money($record->grand_total)]
+            : [];
+    }
 
     public static function canCreate(): bool
     {

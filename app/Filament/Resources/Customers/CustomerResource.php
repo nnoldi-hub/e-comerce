@@ -46,6 +46,18 @@ class CustomerResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
+    /** @return list<string> */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['name', 'email'];
+    }
+
+    /** @return array<string, string> */
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        return $record instanceof User ? ['Email' => (string) $record->email] : [];
+    }
+
     public static function canViewAny(): bool
     {
         return Gate::allows('customers.view');

@@ -10,6 +10,8 @@ use App\Filament\Support\MinorUnits;
 use App\Models\Product;
 use BackedEnum;
 use Closure;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
@@ -21,10 +23,13 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\SpatieMediaLibraryImageColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use UnitEnum;
 
@@ -52,6 +57,18 @@ class ProductResource extends Resource
     protected static ?string $pluralModelLabel = 'produse';
 
     protected static ?string $recordTitleAttribute = 'name';
+
+    /** @return list<string> */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['name', 'slug'];
+    }
+
+    /** @return array<string, string> */
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        return $record instanceof Product ? ['Slug' => (string) $record->slug] : [];
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -154,7 +171,7 @@ class ProductResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['brand', 'media'])->withCount('variants'))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['brand', 'media', 'categories', 'variants'])->withCount('variants'))
             ->columns([
                 SpatieMediaLibraryImageColumn::make('thumbnail')
                     ->label('')
@@ -170,13 +187,21 @@ class ProductResource extends Resource
                         'archived' => 'warning',
                         default => 'gray',
                     }),
+                TextColumn::make('variants.sku')->label('SKU')->searchable()
+                    ->limitList(2)->expandableLimitedList()->toggleable(),
+                TextColumn::make('categories.name')->label('Categorie')->badge()->color('gray')
+                    ->limitList(2)->toggleable(),
                 TextColumn::make('type')->label('Tip')
                     ->formatStateUsing(fn (string $state): string => self::TYPES[$state] ?? $state)
                     ->toggleable(),
                 TextColumn::make('min_price')->label('Preț de la')->sortable()
                     ->formatStateUsing(fn ($state): string => MinorUnits::format((int) $state)),
                 TextColumn::make('total_stock')->label('Stoc')->sortable()
-                    ->color(fn ($state): ?string => (int) $state <= 0 ? 'danger' : null),
+                    ->color(fn ($state): ?string => match (true) {
+                        (int) $state <= 0 => 'danger',
+                        (int) $state <= (int) config('storefront.low_stock', 5) => 'warning',
+                        default => null,
+                    }),
                 TextColumn::make('variants_count')->label('Variante'),
                 TextColumn::make('published_at')->label('Publicat')->dateTime('d.m.Y H:i')->placeholder('—')
                     ->sortable()->toggleable(isToggledHiddenByDefault: true),
@@ -184,12 +209,49 @@ class ProductResource extends Resource
             ->filters([
                 SelectFilter::make('status')->label('Status')->options(self::STATUSES),
                 SelectFilter::make('brand_id')->label('Brand')->relationship('brand', 'name'),
+                SelectFilter::make('type')->label('Tip')->options(self::TYPES),
+                SelectFilter::make('categories')->label('Categorie')->relationship('categories', 'name')->multiple()->preload(),
+                Filter::make('out_of_stock')->label('Epuizate')
+                    ->query(fn (Builder $query): Builder => $query->where('total_stock', '<=', 0)),
+                Filter::make('low_stock')->label('Stoc redus')
+                    ->query(fn (Builder $query): Builder => $query
+                        ->where('total_stock', '>', 0)
+                        ->where('total_stock', '<=', (int) config('storefront.low_stock', 5))),
+                Filter::make('no_image')->label('Fără imagine')
+                    ->query(fn (Builder $query): Builder => $query->whereDoesntHave('media')),
                 TrashedFilter::make(),
             ])
+            ->persistFiltersInSession()
+            ->striped()
             ->defaultSort('id', 'desc')
             ->recordActions([
                 EditAction::make(),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    self::statusBulkAction('publish', 'Publică', 'active', 'heroicon-o-eye', 'success'),
+                    self::statusBulkAction('draft', 'Treci în ciornă', 'draft', 'heroicon-o-pencil-square', 'gray'),
+                    self::statusBulkAction('archive', 'Arhivează', 'archived', 'heroicon-o-archive-box', 'warning'),
+                ])->label('Schimbă statusul'),
             ]);
+    }
+
+    private static function statusBulkAction(string $name, string $label, string $status, string $icon, string $color): BulkAction
+    {
+        return BulkAction::make($name)
+            ->label($label)
+            ->icon($icon)
+            ->color($color)
+            ->requiresConfirmation()
+            ->visible(fn (): bool => static::canCreate())
+            ->deselectRecordsAfterCompletion()
+            ->action(function (Collection $records) use ($status): void {
+                foreach ($records as $record) {
+                    if ($record instanceof Product) {
+                        $record->update(self::normalize(['status' => $status, 'published_at' => $record->published_at]));
+                    }
+                }
+            });
     }
 
     public static function getRelations(): array
