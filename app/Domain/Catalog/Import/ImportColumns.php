@@ -80,6 +80,12 @@ final class ImportColumns
             'help' => 'Atribut=Valoare, separate prin „;” (ex. Culoare=Roșu; Mărime=M). Atributele și valorile trebuie să existe deja (vezi foaia „Referințe”).',
             'aliases' => ['optiune', 'variante', 'atribute'],
         ],
+        'specificatii' => [
+            'label' => 'Specificații',
+            'required' => 'Nu',
+            'help' => 'Caracteristici tehnice, Atribut=Valoare, separate prin „;” (ex. Tensiune=230 V; Curent=16 A). Atributul trebuie să existe deja (Admin → Atribute); valoarea se scrie liber și se creează dacă nu există. La actualizare se modifică doar atributele din fișier. Se completează o singură dată per produs.',
+            'aliases' => ['specificatii_tehnice', 'caracteristici', 'specs'],
+        ],
         'pret' => [
             'label' => 'Preț',
             'required' => 'Da (produse noi)',

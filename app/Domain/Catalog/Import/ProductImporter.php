@@ -7,11 +7,13 @@ use App\Domain\Catalog\SaveVariantAction;
 use App\Domain\Inventory\AdjustStockAction;
 use App\Domain\Inventory\Exceptions\InvalidStockAdjustmentException;
 use App\Enums\StockMovementType;
+use App\Models\Attribute;
 use App\Models\AttributeValue;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Support\ProductSpecs;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -38,6 +40,9 @@ class ProductImporter
 
     private const NO = ['nu', 'no', 'false', '0', 'n'];
 
+    /** @var array<string, int>|null nume atribut (litere mici) => id */
+    private ?array $specAttributes = null;
+
     public function __construct(
         private readonly SaveVariantAction $saveVariant,
         private readonly AdjustStockAction $adjustStock,
@@ -50,6 +55,7 @@ class ProductImporter
     public function plan(array $rows, string $mode, bool $canAdjustStock): ImportPlan
     {
         $plan = new ImportPlan($mode);
+        $this->specAttributes = null;
 
         if ($rows === []) {
             $plan->fatal = 'Fișierul este gol.';
@@ -305,6 +311,43 @@ class ProductImporter
 
             $product->image = $image !== '' ? $image : null;
             $product->gallery = $gallery;
+        }
+
+        // ---- Specificații ----
+        $specText = $firstOf('specificatii');
+
+        if ($specText !== '') {
+            $specs = [];
+
+            foreach (array_filter(array_map('trim', preg_split('/[;\n]/', $specText) ?: [])) as $pair) {
+                $parts = explode('=', $pair, 2);
+                $name = trim($parts[0]);
+                $value = trim($parts[1] ?? '');
+
+                if (count($parts) < 2 || $name === '' || $value === '') {
+                    $err($product->row, $groupRows[0]['data']['sku'], 'Specificația „'.$pair.'” trebuie scrisă Atribut=Valoare.');
+
+                    continue;
+                }
+
+                $attributeId = $this->specAttributeIds()[mb_strtolower($name)] ?? null;
+
+                if ($attributeId === null) {
+                    $err($product->row, $groupRows[0]['data']['sku'], 'Atributul „'.$name.'” din Specificații nu există (creează-l în Admin → Atribute).');
+
+                    continue;
+                }
+
+                if (mb_strlen($value) > 255) {
+                    $err($product->row, $groupRows[0]['data']['sku'], 'Valoarea specificației „'.$name.'” are peste 255 de caractere.');
+
+                    continue;
+                }
+
+                $specs[$attributeId] = $value;
+            }
+
+            $product->specs = $specs;
         }
 
         // ---- Variante ----
@@ -601,6 +644,42 @@ class ProductImporter
     // Scriere
     // ------------------------------------------------------------------
 
+    /** @return array<string, int> */
+    private function specAttributeIds(): array
+    {
+        if ($this->specAttributes === null) {
+            $this->specAttributes = [];
+
+            foreach (Attribute::query()->get(['id', 'name']) as $attribute) {
+                $this->specAttributes[mb_strtolower((string) $attribute->name)] = (int) $attribute->id;
+            }
+        }
+
+        return $this->specAttributes;
+    }
+
+    /** Scrie specificațiile din fișier; la actualizare păstrează restul atributelor produsului. */
+    private function applySpecs(PlannedProduct $planned, int $productId, bool $merge): void
+    {
+        if ($planned->specs === null || $planned->specs === []) {
+            return;
+        }
+
+        $rows = [];
+
+        if ($merge) {
+            foreach (ProductSpecs::rows($productId) as $row) {
+                $rows[$row['attribute_id']] = ['attribute_id' => $row['attribute_id'], 'value' => $row['value']];
+            }
+        }
+
+        foreach ($planned->specs as $attributeId => $value) {
+            $rows[$attributeId] = ['attribute_id' => $attributeId, 'value' => $value];
+        }
+
+        ProductSpecs::sync($productId, $rows);
+    }
+
     private function create(PlannedProduct $planned, ?int $userId): Product
     {
         return DB::transaction(function () use ($planned, $userId): Product {
@@ -618,6 +697,8 @@ class ProductImporter
             if ($planned->categoryIds !== null && $planned->categoryIds !== []) {
                 $product->categories()->sync(array_fill_keys($planned->categoryIds, ['position' => 0]));
             }
+
+            $this->applySpecs($planned, $product->id, merge: false);
 
             foreach ($planned->variants as $index => $variant) {
                 $this->saveVariant->create(
@@ -688,6 +769,8 @@ class ProductImporter
             if ($planned->categoryIds !== null) {
                 $product->categories()->sync(array_fill_keys($planned->categoryIds, ['position' => 0]));
             }
+
+            $this->applySpecs($planned, $product->id, merge: true);
 
             foreach ($planned->variants as $variant) {
                 $existing = ProductVariant::query()->with('attributeValues')->findOrFail($variant->existingId);

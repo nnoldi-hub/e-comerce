@@ -76,6 +76,7 @@ class TemplateBuilder
                 'status' => 'ciornă',
                 'sku' => 'EXEMPLU-PRZ-001',
                 'cod_bare' => '5941234567890',
+                'specificatii' => 'Tensiune=230 V; Curent=16 A',
                 'pret' => '25,50',
                 'pret_barat' => '30,00',
                 'cost' => '15,00',

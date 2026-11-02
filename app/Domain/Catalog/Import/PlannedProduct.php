@@ -26,6 +26,9 @@ final class PlannedProduct
     /** @var list<string> */
     public array $gallery = [];
 
+    /** @var array<int, string>|null id atribut => valoare; null = nu se modifică */
+    public ?array $specs = null;
+
     public string $type = 'simple';
 
     /** Produsul existent (doar la actualizare). */
