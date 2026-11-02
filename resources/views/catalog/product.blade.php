@@ -135,5 +135,21 @@
         </div>
     </div>
 
+    @if ($specs !== [])
+        <section aria-labelledby="specs-title" class="mt-10 border-t border-zinc-200 pt-6">
+            <h2 id="specs-title" class="mb-3 text-lg font-semibold">Specificații tehnice</h2>
+            <table class="w-full max-w-3xl overflow-hidden rounded-xl border border-zinc-200 text-sm">
+                <tbody class="divide-y divide-zinc-200">
+                    @foreach ($specs as $spec)
+                        <tr class="odd:bg-zinc-50">
+                            <th scope="row" class="w-2/5 px-4 py-2 text-left font-medium text-zinc-600">{{ $spec['name'] }}</th>
+                            <td class="px-4 py-2 text-zinc-900">{{ $spec['value'] }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </section>
+    @endif
+
     @include('catalog.partials.reviews', ['product' => $product, 'reviews' => $reviews, 'distribution' => $distribution, 'myReview' => $myReview])
 </x-layouts.app>

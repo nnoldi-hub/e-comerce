@@ -90,9 +90,9 @@
                 @foreach ($categories as $category)
                     <li>
                         <a href="{{ route('catalog.category', ['path' => $category->path]) }}"
-                           class="group flex h-full flex-col justify-between gap-6 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 transition hover:border-brand-200 hover:bg-brand-50">
-                            <span class="flex size-10 items-center justify-center rounded-xl bg-white text-lg font-bold text-brand-700 shadow-sm" aria-hidden="true">{{ mb_strtoupper(mb_substr($category->name, 0, 1)) }}</span>
-                            <span class="flex items-center justify-between gap-2 text-sm font-semibold">
+                           class="group flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white transition hover:border-brand-200 hover:shadow-md">
+                            <x-tile-image :path="$category->image_path" :name="$category->name" class="aspect-[4/3] w-full" />
+                            <span class="flex items-center justify-between gap-2 border-t border-zinc-100 px-3 py-2.5 text-sm font-semibold">
                                 {{ $category->name }}
                                 <x-ui-icon name="chevron" class="size-4 shrink-0 text-zinc-400 transition group-hover:translate-x-0.5 group-hover:text-brand-600" />
                             </span>

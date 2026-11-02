@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Review;
 use App\Models\WishlistItem;
+use App\Support\ProductSpecs;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -47,6 +48,7 @@ class ProductController extends Controller
         }
 
         $userId = $request->user()?->id;
+        $specs = ProductSpecs::rows($product->id);
 
         $seo = is_array($product->seo) ? $product->seo : [];
         $description = (string) ($seo['description'] ?? Str::limit(trim(strip_tags((string) $product->description)), 160));
@@ -57,7 +59,8 @@ class ProductController extends Controller
             'variant' => $variant,
             'metaTitle' => (string) ($seo['title'] ?? $product->name),
             'metaDescription' => $description,
-            'structuredData' => $this->structuredData($product, $variant, $description, $reviews),
+            'structuredData' => $this->structuredData($product, $variant, $description, $reviews, $specs),
+            'specs' => $specs,
             'reviews' => $reviews,
             'distribution' => $distribution,
             'myReview' => $userId === null ? null : Review::query()->where('product_id', $product->id)->where('user_id', $userId)->first(),
@@ -69,9 +72,10 @@ class ProductController extends Controller
      * Date structurate schema.org/Product (rich results în Google).
      *
      * @param  Collection<int, Review>  $reviews
+     * @param  list<array{attribute_id: int, name: string, value: string}>  $specs
      * @return array<string, mixed>
      */
-    private function structuredData(Product $product, ?ProductVariant $variant, string $description, Collection $reviews): array
+    private function structuredData(Product $product, ?ProductVariant $variant, string $description, Collection $reviews, array $specs = []): array
     {
         $media = $product->getFirstMedia('thumbnail') ?? $product->getFirstMedia('gallery');
 
@@ -102,6 +106,13 @@ class ProductController extends Controller
                     : 'https://schema.org/OutOfStock',
                 'url' => route('catalog.product', $product),
             ];
+        }
+
+        if ($specs !== []) {
+            $data['additionalProperty'] = array_map(
+                fn (array $spec): array => ['@type' => 'PropertyValue', 'name' => $spec['name'], 'value' => $spec['value']],
+                $specs,
+            );
         }
 
         $count = (int) data_get($product, 'reviews_count', 0);

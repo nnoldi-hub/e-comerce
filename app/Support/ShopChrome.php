@@ -27,8 +27,14 @@ final class ShopChrome
 {
     private const MAX_CATEGORIES = 6;
 
+    /** Categorii principale în meniul mare; subcategoriile se limitează în vedere. */
+    private const MAX_MENU = 8;
+
     /** @var Collection<int, Category>|null */
     private ?Collection $categories = null;
+
+    /** @var Collection<int, Category>|null */
+    private ?Collection $menu = null;
 
     private ?int $cartCount = null;
 
@@ -48,7 +54,27 @@ final class ShopChrome
             ->orderBy('position')
             ->orderBy('name')
             ->limit(self::MAX_CATEGORIES)
-            ->get(['id', 'name', 'path']);
+            ->get(['id', 'name', 'path', 'image_path']);
+    }
+
+    /**
+     * Meniul mare: categoriile principale active, fiecare cu subcategoriile active
+     * deja încărcate (`children`), ca vederea să nu facă interogări în plus.
+     *
+     * @return Collection<int, Category>
+     */
+    public function menu(): Collection
+    {
+        $columns = ['id', 'parent_id', 'name', 'path', 'image_path', 'position'];
+
+        return $this->menu ??= Category::query()
+            ->active()
+            ->whereNull('parent_id')
+            ->orderBy('position')
+            ->orderBy('name')
+            ->limit(self::MAX_MENU)
+            ->with(['children' => fn ($children) => $children->where('is_active', true)->orderBy('position')->orderBy('name')->select($columns)])
+            ->get($columns);
     }
 
     /**

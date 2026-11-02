@@ -7,13 +7,16 @@ use App\Filament\Resources\Products\Pages\EditProduct;
 use App\Filament\Resources\Products\Pages\ListProducts;
 use App\Filament\Resources\Products\RelationManagers\VariantsRelationManager;
 use App\Filament\Support\MinorUnits;
+use App\Models\Attribute;
 use App\Models\Product;
+use App\Support\ProductSpecs;
 use BackedEnum;
 use Closure;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
@@ -37,9 +40,9 @@ class ProductResource extends Resource
 {
     public const TYPES = ['simple' => 'Simplu', 'variable' => 'Cu variante'];
 
-    public const STATUSES = ['draft' => 'Ciornă', 'active' => 'Activ', 'archived' => 'Arhivat'];
+    public const STATUSES = ['draft' => 'CiornÄƒ', 'active' => 'Activ', 'archived' => 'Arhivat'];
 
-    /** Dimensiunea maximă a unei imagini, în KB. */
+    /** Dimensiunea maximÄƒ a unei imagini, Ã®n KB. */
     public const IMAGE_MAX_KB = 5120;
 
     public const GALLERY_MAX_FILES = 10;
@@ -76,21 +79,21 @@ class ProductResource extends Resource
             Section::make('General')->schema([
                 TextInput::make('name')->label('Nume')->required()->maxLength(255),
                 TextInput::make('slug')
-                    ->label('Adresă (slug)')
+                    ->label('AdresÄƒ (slug)')
                     ->prefix('/produs/')
                     ->maxLength(190)
                     ->regex('/^[a-z0-9]+(?:-[a-z0-9]+)*$/')
                     ->unique(ignoreRecord: true)
                     ->required(fn (?Product $record): bool => $record !== null)
                     ->helperText(fn (?Product $record): string => $record === null
-                        ? 'Gol: se generează din nume. Doar litere mici, cifre și cratime.'
-                        : 'La schimbare, adresa veche redirecționează automat (301) la cea nouă.'),
+                        ? 'Gol: se genereazÄƒ din nume. Doar litere mici, cifre È™i cratime.'
+                        : 'La schimbare, adresa veche redirecÈ›ioneazÄƒ automat (301) la cea nouÄƒ.'),
                 Select::make('brand_id')
                     ->label('Brand')
                     ->relationship('brand', 'name')
                     ->searchable()
                     ->preload()
-                    ->placeholder('— fără brand —'),
+                    ->placeholder('â€” fÄƒrÄƒ brand â€”'),
                 Select::make('type')
                     ->label('Tip')
                     ->options(self::TYPES)
@@ -100,13 +103,13 @@ class ProductResource extends Resource
                     ->rules([
                         fn (?Product $record): Closure => function (string $attribute, mixed $value, Closure $fail) use ($record): void {
                             if ($value === 'simple' && $record !== null && $record->variants()->count() > 1) {
-                                $fail('Produsul are mai multe variante: șterge-le pe cele în plus înainte să-l faci „Simplu”.');
+                                $fail('Produsul are mai multe variante: È™terge-le pe cele Ã®n plus Ã®nainte sÄƒ-l faci â€žSimpluâ€.');
                             }
                         },
                     ]),
                 Select::make('status')
                     ->label('Status')
-                    // La creare un produs nu are încă variante, deci poate fi doar ciornă.
+                    // La creare un produs nu are Ã®ncÄƒ variante, deci poate fi doar ciornÄƒ.
                     ->options(fn (?Product $record): array => $record === null
                         ? ['draft' => self::STATUSES['draft']]
                         : self::STATUSES)
@@ -114,19 +117,19 @@ class ProductResource extends Resource
                     ->required()
                     ->native(false)
                     ->helperText(fn (?Product $record): string => $record === null
-                        ? 'Produsul se creează ca ciornă. După salvare adaugi variantele (tab-ul Variante) și apoi îl poți activa.'
-                        : 'Un produs devine activ doar după ce are cel puțin o variantă.')
+                        ? 'Produsul se creeazÄƒ ca ciornÄƒ. DupÄƒ salvare adaugi variantele (tab-ul Variante) È™i apoi Ã®l poÈ›i activa.'
+                        : 'Un produs devine activ doar dupÄƒ ce are cel puÈ›in o variantÄƒ.')
                     ->rules([
                         fn (?Product $record): Closure => function (string $attribute, mixed $value, Closure $fail) use ($record): void {
                             if ($value === 'active' && ($record === null || ! $record->variants()->exists())) {
-                                $fail('Adaugă mai întâi cel puțin o variantă, apoi activează produsul.');
+                                $fail('AdaugÄƒ mai Ã®ntÃ¢i cel puÈ›in o variantÄƒ, apoi activeazÄƒ produsul.');
                             }
                         },
                     ]),
                 DateTimePicker::make('published_at')
                     ->label('Publicat la')
                     ->seconds(false)
-                    ->helperText('Lasă gol: se setează automat la activare.'),
+                    ->helperText('LasÄƒ gol: se seteazÄƒ automat la activare.'),
             ])->columns(2),
             Section::make('Descriere')->schema([
                 Textarea::make('description')->label('Descriere')->rows(8)
@@ -134,13 +137,13 @@ class ProductResource extends Resource
             ]),
             Section::make('Imagini')->schema([
                 SpatieMediaLibraryFileUpload::make('thumbnail')
-                    ->label('Imagine principală')
+                    ->label('Imagine principalÄƒ')
                     ->collection('thumbnail')
                     ->conversion('thumb')
                     ->image()
                     ->acceptedFileTypes(Product::IMAGE_MIME_TYPES)
                     ->maxSize(self::IMAGE_MAX_KB)
-                    ->helperText('JPEG, PNG sau WebP, cel mult 5 MB. Se afișează în liste și pe cardul produsului.'),
+                    ->helperText('JPEG, PNG sau WebP, cel mult 5 MB. Se afiÈ™eazÄƒ Ã®n liste È™i pe cardul produsului.'),
                 SpatieMediaLibraryFileUpload::make('gallery')
                     ->label('Galerie')
                     ->collection('gallery')
@@ -151,7 +154,7 @@ class ProductResource extends Resource
                     ->acceptedFileTypes(Product::IMAGE_MIME_TYPES)
                     ->maxSize(self::IMAGE_MAX_KB)
                     ->maxFiles(self::GALLERY_MAX_FILES)
-                    ->helperText('Cel mult '.self::GALLERY_MAX_FILES.' imagini; ordinea se schimbă prin tragere.'),
+                    ->helperText('Cel mult '.self::GALLERY_MAX_FILES.' imagini; ordinea se schimbÄƒ prin tragere.'),
             ])->columns(2),
             Section::make('Organizare')->schema([
                 Select::make('categories')
@@ -161,6 +164,36 @@ class ProductResource extends Resource
                     ->searchable()
                     ->preload(),
             ]),
+            Section::make('SpecificaÈ›ii tehnice')
+                ->description('Caracteristici afiÈ™ate Ã®n tabelul din pagina produsului. Atributele marcate â€žfiltrabileâ€ devin filtre Ã®n catalog.')
+                ->schema([
+                    Repeater::make('specs')
+                        ->label('SpecificaÈ›ii')
+                        ->hiddenLabel()
+                        ->addActionLabel('AdaugÄƒ specificaÈ›ie')
+                        ->dehydrated(false)
+                        ->afterStateHydrated(function (Repeater $component, ?Product $record): void {
+                            $component->state($record === null ? [] : array_map(
+                                fn (array $row): array => ['attribute_id' => $row['attribute_id'], 'value' => $row['value']],
+                                ProductSpecs::rows($record->id),
+                            ));
+                        })
+                        ->saveRelationshipsUsing(function (Repeater $component, Product $record): void {
+                            ProductSpecs::sync($record->id, (array) $component->getRawState());
+                        })
+                        ->schema([
+                            Select::make('attribute_id')
+                                ->label('Atribut')
+                                ->options(fn (): array => Attribute::query()->orderBy('name')->pluck('name', 'id')->all())
+                                ->searchable()
+                                ->required()
+                                ->distinct(),
+                            TextInput::make('value')->label('Valoare')->required()->maxLength(255),
+                        ])
+                        ->columns(2)
+                        ->defaultItems(0)
+                        ->maxItems(40),
+                ])->collapsible(),
             Section::make('SEO')->schema([
                 TextInput::make('seo.title')->label('Titlu meta')->maxLength(255),
                 Textarea::make('seo.description')->label('Descriere meta')->rows(3)->maxLength(500),
@@ -194,7 +227,7 @@ class ProductResource extends Resource
                 TextColumn::make('type')->label('Tip')
                     ->formatStateUsing(fn (string $state): string => self::TYPES[$state] ?? $state)
                     ->toggleable(),
-                TextColumn::make('min_price')->label('Preț de la')->sortable()
+                TextColumn::make('min_price')->label('PreÈ› de la')->sortable()
                     ->formatStateUsing(fn ($state): string => MinorUnits::format((int) $state)),
                 TextColumn::make('total_stock')->label('Stoc')->sortable()
                     ->color(fn ($state): ?string => match (true) {
@@ -203,7 +236,7 @@ class ProductResource extends Resource
                         default => null,
                     }),
                 TextColumn::make('variants_count')->label('Variante'),
-                TextColumn::make('published_at')->label('Publicat')->dateTime('d.m.Y H:i')->placeholder('—')
+                TextColumn::make('published_at')->label('Publicat')->dateTime('d.m.Y H:i')->placeholder('â€”')
                     ->sortable()->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
@@ -217,7 +250,7 @@ class ProductResource extends Resource
                     ->query(fn (Builder $query): Builder => $query
                         ->where('total_stock', '>', 0)
                         ->where('total_stock', '<=', (int) config('storefront.low_stock', 5))),
-                Filter::make('no_image')->label('Fără imagine')
+                Filter::make('no_image')->label('FÄƒrÄƒ imagine')
                     ->query(fn (Builder $query): Builder => $query->whereDoesntHave('media')),
                 TrashedFilter::make(),
             ])
@@ -229,10 +262,10 @@ class ProductResource extends Resource
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    self::statusBulkAction('publish', 'Publică', 'active', 'heroicon-o-eye', 'success'),
-                    self::statusBulkAction('draft', 'Treci în ciornă', 'draft', 'heroicon-o-pencil-square', 'gray'),
-                    self::statusBulkAction('archive', 'Arhivează', 'archived', 'heroicon-o-archive-box', 'warning'),
-                ])->label('Schimbă statusul'),
+                    self::statusBulkAction('publish', 'PublicÄƒ', 'active', 'heroicon-o-eye', 'success'),
+                    self::statusBulkAction('draft', 'Treci Ã®n ciornÄƒ', 'draft', 'heroicon-o-pencil-square', 'gray'),
+                    self::statusBulkAction('archive', 'ArhiveazÄƒ', 'archived', 'heroicon-o-archive-box', 'warning'),
+                ])->label('SchimbÄƒ statusul'),
             ]);
     }
 

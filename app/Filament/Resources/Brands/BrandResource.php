@@ -10,11 +10,13 @@ use BackedEnum;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
@@ -41,6 +43,19 @@ class BrandResource extends Resource
         return $schema->components([
             TextInput::make('name')->label('Nume')->required()->maxLength(255),
             Toggle::make('is_active')->label('Activ')->default(true),
+            FileUpload::make('logo_path')
+                ->label('Siglă brand')
+                ->image()
+                ->disk('public')
+                ->directory('brands')
+                ->visibility('public')
+                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                ->maxSize(2048)
+                ->imageResizeMode('contain')
+                ->imageResizeTargetWidth('600')
+                ->imageResizeTargetHeight('600')
+                ->imageResizeUpscale(false)
+                ->helperText('Apare în filtrul de branduri din magazin. Recomandat: fundal alb sau transparent, JPG/PNG/WebP, max. 2 MB.'),
         ]);
     }
 
@@ -49,6 +64,7 @@ class BrandResource extends Resource
         return $table
             ->modifyQueryUsing(fn ($query) => $query->withCount('products'))
             ->columns([
+                ImageColumn::make('logo_path')->label('')->disk('public')->square(),
                 TextColumn::make('name')->label('Nume')->searchable()->sortable(),
                 TextColumn::make('slug')->label('Slug')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('products_count')->label('Produse')->sortable(),

@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\SlugRedirect;
 use App\Support\CatalogFilterChips;
+use App\Support\ProductSpecs;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -61,6 +62,7 @@ class CatalogController extends Controller
     private function render(Request $request, ?Category $category): View
     {
         $filters = $this->filters($request);
+        $specs = ProductSpecs::parse($request);
 
         // Baza: produse active cu variante, în categorie (dacă e cazul). Din ea derivă și
         // lista, și numărătorile pentru filtre, ca cifrele să corespundă cu rezultatele.
@@ -72,13 +74,18 @@ class CatalogController extends Controller
 
         $query = (clone $base)->with(['media', 'variants']);
         $this->applyFilters($query, $filters);
+        ProductSpecs::apply($query, $specs);
         $this->applySort($query, $filters['sort']);
 
         $products = $query->paginate(self::PER_PAGE)->withQueryString();
 
         $categories = Category::query()->active()->orderBy('position')->orderBy('name')->get();
         $brands = Brand::query()->where('is_active', true)->orderBy('name')->get();
-        $brandCounts = $this->brandCounts($base, $filters);
+        $brandCounts = $this->brandCounts($base, $filters, $specs);
+        $facets = ProductSpecs::facets($base, $specs, function (Builder $scoped, string $except) use ($filters, $specs): void {
+            $this->applyFilters($scoped, $filters);
+            ProductSpecs::apply($scoped, $specs, $except);
+        });
 
         $resetUrl = $category !== null ? route('catalog.category', ['path' => $category->path]) : route('catalog.index');
 
@@ -88,20 +95,25 @@ class CatalogController extends Controller
             $brandNames[$brand->slug] = $brand->name;
         }
 
-        $chips = CatalogFilterChips::build($resetUrl, $filters, $brandNames);
+        $chips = CatalogFilterChips::build($resetUrl, $filters, $brandNames, $specs, ProductSpecs::labels($specs));
 
         return view('catalog.index', [
             'products' => $products,
             'category' => $category,
+            'subcategories' => $category === null
+                ? collect()
+                : $category->children()->where('is_active', true)->orderBy('position')->orderBy('name')->get(['id', 'name', 'path', 'image_path']),
             'breadcrumbs' => $category !== null ? $this->breadcrumbs($category) : collect(),
             'categoriesByParent' => $categories->groupBy(fn (Category $c) => $c->parent_id ?? 0),
             // Brandurile fără produse în selecția curentă dispar, dar cele bifate rămân vizibile.
             'brands' => $brands->filter(fn (Brand $b) => ($brandCounts[$b->id] ?? 0) > 0 || in_array($b->slug, $filters['brands'], true))->values(),
             'brandCounts' => $brandCounts,
-            'priceBounds' => $this->priceBounds($base, $filters),
+            'priceBounds' => $this->priceBounds($base, $filters, $specs),
+            'facets' => $facets,
+            'specs' => $specs,
             'filters' => $filters,
             'chips' => $chips,
-            'filtered' => $filters['q'] !== '' || $filters['brands'] !== [] || $filters['min'] !== null
+            'filtered' => $specs !== [] || $filters['q'] !== '' || $filters['brands'] !== [] || $filters['min'] !== null
                 || $filters['max'] !== null || $filters['in_stock'] || $filters['sort'] !== 'newest',
         ]);
     }
@@ -112,12 +124,14 @@ class CatalogController extends Controller
      *
      * @param  Builder<Product>  $base
      * @param  array{q: string, brands: list<string>, min: int|null, max: int|null, in_stock: bool, sort: string}  $filters
+     * @param  array<string, list<string>>  $specs
      * @return array<int, int>
      */
-    private function brandCounts(Builder $base, array $filters): array
+    private function brandCounts(Builder $base, array $filters, array $specs = []): array
     {
         $query = clone $base;
         $this->applyFilters($query, $filters, skipBrands: true);
+        ProductSpecs::apply($query, $specs);
 
         $counts = [];
 
@@ -134,12 +148,14 @@ class CatalogController extends Controller
      *
      * @param  Builder<Product>  $base
      * @param  array{q: string, brands: list<string>, min: int|null, max: int|null, in_stock: bool, sort: string}  $filters
+     * @param  array<string, list<string>>  $specs
      * @return array{min: int, max: int}
      */
-    private function priceBounds(Builder $base, array $filters): array
+    private function priceBounds(Builder $base, array $filters, array $specs = []): array
     {
         $query = (clone $base)->where('min_price', '>', 0);
         $this->applyFilters($query, $filters, skipPrice: true);
+        ProductSpecs::apply($query, $specs);
 
         $low = (clone $query)->min('min_price');
         $high = (clone $query)->max('min_price');

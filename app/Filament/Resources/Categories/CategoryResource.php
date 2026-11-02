@@ -10,6 +10,7 @@ use BackedEnum;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -18,6 +19,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
@@ -60,6 +62,19 @@ class CategoryResource extends Resource
                     ->placeholder('— categorie principală —'),
                 TextInput::make('position')->label('Poziție')->numeric()->integer()->default(0),
                 Toggle::make('is_active')->label('Activă')->default(true),
+                FileUpload::make('image_path')
+                    ->label('Imagine categorie')
+                    ->image()
+                    ->disk('public')
+                    ->directory('categories')
+                    ->visibility('public')
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                    ->maxSize(2048)
+                    ->imageResizeMode('contain')
+                    ->imageResizeTargetWidth('600')
+                    ->imageResizeTargetHeight('600')
+                    ->imageResizeUpscale(false)
+                    ->helperText('Apare în meniul principal și pe pagina categoriei. Recomandat: fundal alb, produs centrat, JPG/PNG/WebP, max. 2 MB (se redimensionează la 600 px).'),
             ])->columns(2),
             Section::make('SEO')->schema([
                 TextInput::make('meta_title')->label('Titlu meta')->maxLength(255),
@@ -95,6 +110,7 @@ class CategoryResource extends Resource
         return $table
             ->modifyQueryUsing(fn ($query) => $query->withCount('products')->with('parent'))
             ->columns([
+                ImageColumn::make('image_path')->label('')->disk('public')->square(),
                 TextColumn::make('name')->label('Nume')->searchable()->sortable(),
                 TextColumn::make('path')->label('Cale')->toggleable(),
                 TextColumn::make('parent.name')->label('Părinte')->placeholder('—'),

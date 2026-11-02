@@ -12,7 +12,7 @@ class Brand extends Model
 {
     use HasFactory, HasSlug;
 
-    protected $fillable = ['name', 'slug', 'is_active'];
+    protected $fillable = ['name', 'slug', 'is_active', 'logo_path'];
 
     protected $casts = [
         'is_active' => 'boolean',

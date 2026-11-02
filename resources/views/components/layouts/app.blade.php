@@ -2,6 +2,7 @@
 @php
     $chrome = app(\App\Support\ShopChrome::class);
     $navCategories = $chrome->categories();
+    $menu = $chrome->menu();
     $cartCount = $chrome->cartCount();
     $cartLabel = $cartCount > 0 ? 'Coș, '.$cartCount.' '.($cartCount === 1 ? 'produs' : 'produse') : 'Coș';
     $pageTitle = $title ? $title.' · '.config('app.name') : config('app.name');
@@ -71,8 +72,23 @@
                     <nav class="shell py-3 text-base" aria-label="Meniu mobil">
                         <a href="{{ url('/') }}" class="block rounded-lg px-3 py-3 hover:bg-zinc-50">Acasă</a>
                         <a href="{{ route('catalog.index') }}" class="block rounded-lg px-3 py-3 font-medium hover:bg-zinc-50">Produse</a>
-                        @foreach ($navCategories as $navCategory)
-                            <a href="{{ route('catalog.category', ['path' => $navCategory->path]) }}" class="block rounded-lg px-3 py-3 pl-7 text-zinc-600 hover:bg-zinc-50">{{ $navCategory->name }}</a>
+                        @foreach ($menu as $top)
+                            @if ($top->children->isNotEmpty())
+                                <details class="group/sub">
+                                    <summary class="flex cursor-pointer list-none items-center justify-between rounded-lg px-3 py-3 pl-7 text-zinc-700 hover:bg-zinc-50 [&::-webkit-details-marker]:hidden">
+                                        {{ $top->name }}
+                                        <x-ui-icon name="chevron" class="size-4 text-zinc-400 transition group-open/sub:rotate-90" />
+                                    </summary>
+                                    <div class="pb-1 pl-11">
+                                        <a href="{{ route('catalog.category', ['path' => $top->path]) }}" class="block rounded-lg px-3 py-2.5 font-medium text-brand-700 hover:bg-zinc-50">Toate din {{ $top->name }}</a>
+                                        @foreach ($top->children as $kid)
+                                            <a href="{{ route('catalog.category', ['path' => $kid->path]) }}" class="block rounded-lg px-3 py-2.5 text-zinc-600 hover:bg-zinc-50">{{ $kid->name }}</a>
+                                        @endforeach
+                                    </div>
+                                </details>
+                            @else
+                                <a href="{{ route('catalog.category', ['path' => $top->path]) }}" class="block rounded-lg px-3 py-3 pl-7 text-zinc-600 hover:bg-zinc-50">{{ $top->name }}</a>
+                            @endif
                         @endforeach
                         <a href="{{ route('cart.index') }}" class="block rounded-lg px-3 py-3 hover:bg-zinc-50">Coș</a>
                         <div class="my-2 border-t border-zinc-100"></div>
@@ -141,14 +157,43 @@
             </div>
         </form>
 
-        {{-- Categorii (desktop) --}}
+        {{-- Categorii (desktop): meniu mare cu imagini, doar CSS (hover și focus). Panoul se deschide pe toată lățimea headerului. --}}
         <nav class="hidden border-t border-zinc-100 md:block" aria-label="Principal">
-            <div class="shell no-scrollbar flex items-center gap-1 overflow-x-auto py-1.5 text-sm">
+            <div class="shell flex flex-wrap items-stretch gap-x-1 text-sm">
                 <a href="{{ route('catalog.index') }}" @if (request()->routeIs('catalog.index')) aria-current="page" @endif
-                   class="whitespace-nowrap rounded-lg px-3 py-1.5 font-medium hover:bg-zinc-100 {{ request()->routeIs('catalog.index') ? 'text-brand-700' : 'text-zinc-800' }}">Toate produsele</a>
-                @foreach ($navCategories as $navCategory)
-                    <a href="{{ route('catalog.category', ['path' => $navCategory->path]) }}"
-                       class="whitespace-nowrap rounded-lg px-3 py-1.5 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900">{{ $navCategory->name }}</a>
+                   class="whitespace-nowrap rounded-lg px-3 py-2.5 font-medium hover:bg-zinc-100 {{ request()->routeIs('catalog.index') ? 'text-brand-700' : 'text-zinc-800' }}">Toate produsele</a>
+
+                @foreach ($menu as $top)
+                    @php($kids = $top->children->take(18))
+                    <div class="group">
+                        <a href="{{ route('catalog.category', ['path' => $top->path]) }}"
+                           class="flex h-full items-center gap-1 whitespace-nowrap rounded-lg px-3 py-2.5 text-zinc-700 group-focus-within:bg-zinc-100 group-hover:bg-zinc-100 group-hover:text-zinc-900">
+                            {{ $top->name }}
+                            @if ($kids->isNotEmpty())<x-ui-icon name="chevron" class="size-3.5 rotate-90 text-zinc-400" />@endif
+                        </a>
+
+                        @if ($kids->isNotEmpty())
+                            <div class="absolute inset-x-0 top-full z-40 hidden border-b border-zinc-200 bg-white shadow-xl group-focus-within:block group-hover:block">
+                                <div class="shell py-5">
+                                    <div class="mb-3 flex items-baseline justify-between border-b border-zinc-100 pb-2">
+                                        <p class="text-base font-semibold">{{ $top->name }}</p>
+                                        <a href="{{ route('catalog.category', ['path' => $top->path]) }}" class="text-sm font-medium text-brand-600 hover:underline">Vezi toate produsele</a>
+                                    </div>
+                                    <ul class="grid grid-cols-4 gap-3 lg:grid-cols-6">
+                                        @foreach ($kids as $kid)
+                                            <li>
+                                                <a href="{{ route('catalog.category', ['path' => $kid->path]) }}"
+                                                   class="group/tile block h-full overflow-hidden rounded-xl border border-zinc-200 bg-white transition hover:border-brand-300 hover:shadow-md">
+                                                    <x-tile-image :path="$kid->image_path" :name="$kid->name" class="aspect-[4/3] w-full" />
+                                                    <span class="block px-3 py-2 text-sm font-medium leading-snug group-hover/tile:text-brand-700">{{ $kid->name }}</span>
+                                                </a>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            </div>
+                        @endif
+                    </div>
                 @endforeach
             </div>
         </nav>

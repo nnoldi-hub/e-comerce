@@ -16,7 +16,7 @@ class Category extends Model
 {
     use HasFactory, HasSlug;
 
-    protected $fillable = ['parent_id', 'name', 'slug', 'path', 'position', 'is_active', 'meta_title', 'meta_description'];
+    protected $fillable = ['parent_id', 'name', 'slug', 'path', 'position', 'is_active', 'meta_title', 'meta_description', 'image_path'];
 
     protected $casts = [
         'is_active' => 'boolean',

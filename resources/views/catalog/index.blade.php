@@ -1,7 +1,7 @@
 @php
     $heading = $category?->name ?? ($filters['q'] !== '' ? 'Rezultate pentru „'.$filters['q'].'”' : 'Toate produsele');
     $currentPath = $category?->path;
-    $noindex = $filters['q'] !== '' || $filters['brands'] !== [] || $filters['min'] !== null || $filters['max'] !== null || $filters['in_stock'] || $filters['sort'] !== 'newest' || $products->currentPage() > 1;
+    $noindex = $specs !== [] || $filters['q'] !== '' || $filters['brands'] !== [] || $filters['min'] !== null || $filters['max'] !== null || $filters['in_stock'] || $filters['sort'] !== 'newest' || $products->currentPage() > 1;
     $resetUrl = $category ? route('catalog.category', ['path' => $category->path]) : route('catalog.index');
     $crumbs = [['Acasă', url('/')]];
     if ($breadcrumbs->isEmpty()) {
@@ -24,6 +24,20 @@
         <h1 class="text-2xl font-bold tracking-tight sm:text-3xl">{{ $heading }}</h1>
         <p class="mt-1 text-sm text-zinc-500">{{ $products->total() }} {{ $products->total() === 1 ? 'produs găsit' : 'produse găsite' }}</p>
     </div>
+
+    @if ($subcategories->isNotEmpty())
+        <ul class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" aria-label="Subcategorii">
+            @foreach ($subcategories as $sub)
+                <li>
+                    <a href="{{ route('catalog.category', ['path' => $sub->path]) }}"
+                       class="group block h-full overflow-hidden rounded-xl border border-zinc-200 bg-white transition hover:border-brand-300 hover:shadow-md">
+                        <x-tile-image :path="$sub->image_path" :name="$sub->name" class="aspect-[4/3] w-full" />
+                        <span class="block border-t border-zinc-100 px-3 py-2 text-sm font-medium leading-snug group-hover:text-brand-700">{{ $sub->name }}</span>
+                    </a>
+                </li>
+            @endforeach
+        </ul>
+    @endif
 
     {{--
         Filtrele pe telefon se deschid cu un checkbox (fără JavaScript): `peer` + `peer-checked`.
@@ -63,12 +77,36 @@
                             @foreach ($brands as $brand)
                                 <label class="flex items-center gap-2 text-sm">
                                     <input type="checkbox" name="brand[]" value="{{ $brand->slug }}" class="size-4 accent-brand-600" @checked(in_array($brand->slug, $filters['brands'], true))>
+                                    @if ($brand->logo_path)
+                                        <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($brand->logo_path) }}" alt="" loading="lazy" class="size-7 shrink-0 rounded border border-zinc-200 bg-white object-contain p-0.5">
+                                    @endif
                                     <span>{{ $brand->name }} <span class="text-zinc-400">({{ $brandCounts[$brand->id] ?? 0 }})</span></span>
                                 </label>
                             @endforeach
                         </div>
                     </fieldset>
                 @endif
+
+                @foreach ($facets as $facet)
+                    <fieldset>
+                        <legend class="mb-1 text-sm font-medium">{{ $facet['name'] }}</legend>
+                        <div class="space-y-1">
+                            @foreach ($facet['values'] as $value)
+                                @if ($loop->index === 6)
+                                    <details class="space-y-1" @if (collect(array_slice($facet['values'], 6))->contains('checked', true)) open @endif>
+                                        <summary class="cursor-pointer text-sm text-brand-700 hover:underline">Mai multe</summary>
+                                @endif
+                                <label class="flex items-center gap-2 text-sm">
+                                    <input type="checkbox" name="a[{{ $facet['slug'] }}][]" value="{{ $value['slug'] }}" class="size-4 accent-brand-600" @checked($value['checked'])>
+                                    <span>{{ $value['value'] }} <span class="text-zinc-400">({{ $value['count'] }})</span></span>
+                                </label>
+                                @if ($loop->last && $loop->count > 6)
+                                    </details>
+                                @endif
+                            @endforeach
+                        </div>
+                    </fieldset>
+                @endforeach
 
                 {{-- Glisorul apare doar cu JavaScript (data-range-ui); câmpurile min/max funcționează oricum. --}}
                 <fieldset data-price-range data-min="{{ $priceBounds['min'] }}" data-max="{{ $priceBounds['max'] }}">
@@ -131,6 +169,7 @@
                     @if ($filters['min'] !== null)<input type="hidden" name="min" value="{{ $filters['min'] }}">@endif
                     @if ($filters['max'] !== null)<input type="hidden" name="max" value="{{ $filters['max'] }}">@endif
                     @if ($filters['in_stock'])<input type="hidden" name="in_stock" value="1">@endif
+                    @foreach ($specs as $attributeSlug => $valueSlugs)@foreach ($valueSlugs as $valueSlug)<input type="hidden" name="a[{{ $attributeSlug }}][]" value="{{ $valueSlug }}">@endforeach @endforeach
 
                     <label for="sort" class="text-sm text-zinc-500">Sortare</label>
                     <select id="sort" name="sort" data-autosubmit class="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30">
